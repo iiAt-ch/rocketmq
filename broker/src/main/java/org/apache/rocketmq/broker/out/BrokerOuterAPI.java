@@ -127,26 +127,32 @@ public class BrokerOuterAPI {
         List<String> nameServerAddressList = this.remotingClient.getNameServerAddressList();
         if (nameServerAddressList != null && nameServerAddressList.size() > 0) {
 
+            // 封装请求包头
             final RegisterBrokerRequestHeader requestHeader = new RegisterBrokerRequestHeader();
             requestHeader.setBrokerAddr(brokerAddr);
             requestHeader.setBrokerId(brokerId);
             requestHeader.setBrokerName(brokerName);
             requestHeader.setClusterName(clusterName);
+            // master地址，初次请求时该值是空，slave向NameServer注册后返回
             requestHeader.setHaServerAddr(haServerAddr);
             requestHeader.setCompressed(compressed);
 
             RegisterBrokerBody requestBody = new RegisterBrokerBody();
+            // 主题配置
             requestBody.setTopicConfigSerializeWrapper(topicConfigWrapper);
+            // 消息过滤服务器列表
             requestBody.setFilterServerList(filterServerList);
             final byte[] body = requestBody.encode(compressed);
             final int bodyCrc32 = UtilAll.crc32(body);
             requestHeader.setBodyCrc32(bodyCrc32);
             final CountDownLatch countDownLatch = new CountDownLatch(nameServerAddressList.size());
             for (final String namesrvAddr : nameServerAddressList) {
+                // 遍历所有NameServer列表
                 brokerOuterExecutor.execute(new Runnable() {
                     @Override
                     public void run() {
                         try {
+                            // 分别向NameServer注册，发送心跳包
                             RegisterBrokerResult result = registerBroker(namesrvAddr,oneway, timeoutMills,requestHeader,body);
                             if (result != null) {
                                 registerBrokerResultList.add(result);
@@ -179,6 +185,8 @@ public class BrokerOuterAPI {
         final byte[] body
     ) throws RemotingCommandException, MQBrokerException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException,
         InterruptedException {
+        // RocketMQ网络传输基于Netty，网络跟踪方法：每一个请求，RocketMQ都会定义一个RequestCode，然后在服务端会对应相应的网络处理器（processor包中），
+        // 只需整库搜索RequestCode即可找到相应的处理逻辑
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.REGISTER_BROKER, requestHeader);
         request.setBody(body);
 

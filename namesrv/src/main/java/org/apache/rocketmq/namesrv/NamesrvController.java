@@ -38,7 +38,12 @@ import org.apache.rocketmq.remoting.netty.NettyServerConfig;
 import org.apache.rocketmq.remoting.netty.TlsSystemConfig;
 import org.apache.rocketmq.srvutil.FileWatchService;
 
-
+/**
+ * NameServer核心控制器
+ * Namesrv的功能，就相当于RPC或微服务中的注册中心。对于MQ而言，broker启动，将自身创建的topic等信息注册到Namesrv上。
+ * consumer和producer需要配置namesrv的地址，启动后，首先和namesrv建立长连接，并获取相应的topic信息(比如，哪些broker有topic路由信息)，然后再和broker建立长连接。
+ * Namesrv本身无状态，可集群横向扩展部署。所有的注册信息，都保存在namesrv的类似map内存数据结构中。
+ */
 public class NamesrvController {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
@@ -75,15 +80,21 @@ public class NamesrvController {
 
     public boolean initialize() {
 
+        // 1.1 kvConfigManager.load() 加载KV配置
         this.kvConfigManager.load();
 
+        // 1.2 初始化通信层
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
 
+        // 1.3 初始化线程池（默认是8 个线程的线程池）
         this.remotingExecutor =
             Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new ThreadFactoryImpl("RemotingExecutorThread_"));
 
+        // 1.4 registerProcessor
         this.registerProcessor();
 
+        // 在RocketMQ中此类定时任务统称为心跳检测
+        // 1.5 增加定时任务：scanNotActiveBroker（nameserver每隔10秒钟（此时间无法更改），扫描所有还存活的broker连接。）
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -92,6 +103,7 @@ public class NamesrvController {
             }
         }, 5, 10, TimeUnit.SECONDS);
 
+        // 1.6 增加定时任务：nameServer每隔10分钟打印一次KV配置
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override

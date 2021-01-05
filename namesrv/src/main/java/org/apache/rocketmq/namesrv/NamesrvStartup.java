@@ -41,6 +41,12 @@ import org.apache.rocketmq.srvutil.ServerUtil;
 import org.apache.rocketmq.srvutil.ShutdownHookThread;
 import org.slf4j.LoggerFactory;
 
+/**
+ * NameServer启动类
+ *  Namesrv的功能，就相当于RPC或微服务中的注册中心。对于MQ而言，broker启动，将自身创建的topic等信息注册到Namesrv上。
+ *  consumer和producer需要配置namesrv的地址，启动后，首先和namesrv建立长连接，并获取相应的topic信息(比如，哪些broker有topic路由信息)，然后再和broker建立长连接。
+ * Namesrv本身无状态，可集群横向扩展部署。所有的注册信息，都保存在namesrv的类似map内存数据结构中。
+ */
 public class NamesrvStartup {
 
     private static InternalLogger log;
@@ -68,6 +74,13 @@ public class NamesrvStartup {
         return null;
     }
 
+    /**
+     * 创建NameServer核心控制器
+     * @param args
+     * @return
+     * @throws IOException
+     * @throws JoranException
+     */
     public static NamesrvController createNamesrvController(String[] args) throws IOException, JoranException {
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
         //PackageConflictDetect.detectFastjson();
@@ -79,9 +92,15 @@ public class NamesrvStartup {
             return null;
         }
 
+        // NameServer业务参数
         final NamesrvConfig namesrvConfig = new NamesrvConfig();
+        // NameServer网络参数
         final NettyServerConfig nettyServerConfig = new NettyServerConfig();
+        // 默认端口9876
         nettyServerConfig.setListenPort(9876);
+
+        // 解析启动时把指定的配置文件或启动命令中的选项值，填充到nameServerConfig, nettyServerConfig对象
+        // -c configFile通过-c命令指定配置文件的路径
         if (commandLine.hasOption('c')) {
             String file = commandLine.getOptionValue('c');
             if (file != null) {
@@ -98,6 +117,8 @@ public class NamesrvStartup {
             }
         }
 
+        // -p 打印当前加载的配置属性
+        // ./mqnameserver -c configFile -p
         if (commandLine.hasOption('p')) {
             InternalLogger console = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_CONSOLE_NAME);
             MixAll.printObjectProperties(console, namesrvConfig);
@@ -105,6 +126,7 @@ public class NamesrvStartup {
             System.exit(0);
         }
 
+        // 使用“--属性名 属性值”，例如 --listenPort 9876。
         MixAll.properties2Object(ServerUtil.commandLine2Properties(commandLine), namesrvConfig);
 
         if (null == namesrvConfig.getRocketmqHome()) {
@@ -137,20 +159,25 @@ public class NamesrvStartup {
             throw new IllegalArgumentException("NamesrvController is null");
         }
 
+        // 初始化NamesrvController
         boolean initResult = controller.initialize();
         if (!initResult) {
             controller.shutdown();
             System.exit(-3);
         }
 
+        // 注册JVM钩子函数
+        // 这里主要是展示一种常用的编程技巧，如果代码中使用了线程池，一种优雅停机的方式就是注册一个JVM钩子函数，在JVM进程关闭之前，先将线程池关闭，及时释放资源。
         Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(log, new Callable<Void>() {
             @Override
             public Void call() throws Exception {
+                // 在JVM进程关闭之前，先将线程池关闭，及时释放资源
                 controller.shutdown();
                 return null;
             }
         }));
 
+        // 启动服务器，监听Broker、消息生产者的网络请求
         controller.start();
 
         return controller;

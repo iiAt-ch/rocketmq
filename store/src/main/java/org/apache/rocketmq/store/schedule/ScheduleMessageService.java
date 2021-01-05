@@ -41,6 +41,7 @@ import org.apache.rocketmq.store.MessageExtBrokerInner;
 import org.apache.rocketmq.store.PutMessageResult;
 import org.apache.rocketmq.store.PutMessageStatus;
 import org.apache.rocketmq.store.SelectMappedBufferResult;
+import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.apache.rocketmq.store.config.StorePathConfigHelper;
 
 public class ScheduleMessageService extends ConfigManager {
@@ -170,7 +171,13 @@ public class ScheduleMessageService extends ConfigManager {
         return delayOffsetSerializeWrapper.toJson(prettyFormat);
     }
 
+    /**
+     * 解析 {@link MessageStoreConfig#messageDelayLevel} 成map
+     *
+     * @return
+     */
     public boolean parseDelayLevel() {
+        // 将延时时间转成毫秒
         HashMap<String, Long> timeUnitTable = new HashMap<String, Long>();
         timeUnitTable.put("s", 1000L);
         timeUnitTable.put("m", 1000L * 60);
@@ -182,6 +189,7 @@ public class ScheduleMessageService extends ConfigManager {
             String[] levelArray = levelString.split(" ");
             for (int i = 0; i < levelArray.length; i++) {
                 String value = levelArray[i];
+                // s/m/h/d
                 String ch = value.substring(value.length() - 1);
                 Long tu = timeUnitTable.get(ch);
 

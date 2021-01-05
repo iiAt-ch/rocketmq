@@ -20,11 +20,20 @@
  */
 package org.apache.rocketmq.common.protocol.route;
 
+/**
+ * RocketMQ基于订阅发布机制，一个Topic拥有多个消息队列，一个Broker为每一主题默认创建4个读队列4个写队列。
+ */
 public class QueueData implements Comparable<QueueData> {
     private String brokerName;
     private int readQueueNums;
     private int writeQueueNums;
+    /**
+     * 读写权限
+     */
     private int perm;
+    /**
+     * topic同步标记
+     */
     private int topicSynFlag;
 
     public int getReadQueueNums() {

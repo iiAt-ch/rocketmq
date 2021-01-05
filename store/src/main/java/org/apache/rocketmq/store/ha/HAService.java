@@ -40,13 +40,23 @@ import org.apache.rocketmq.remoting.common.RemotingUtil;
 import org.apache.rocketmq.store.CommitLog;
 import org.apache.rocketmq.store.DefaultMessageStore;
 
+/**
+ * 主从同步核心实现类
+ * 消息数据内容(commitLog)同步：实时同步由java原生Socket实现
+ */
 public class HAService {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
     private final AtomicInteger connectionCount = new AtomicInteger(0);
 
+    /**
+     * HA Master-Slave 网络连接对象，对Master节点连接、读写数据
+     */
     private final List<HAConnection> connectionList = new LinkedList<>();
 
+    /**
+     * 服务端接收连接线程实现类，作为Master端监听Slave连接的实现类。
+     */
     private final AcceptSocketService acceptSocketService;
 
     private final DefaultMessageStore defaultMessageStore;
@@ -56,6 +66,9 @@ public class HAService {
 
     private final GroupTransferService groupTransferService;
 
+    /**
+     * HA客户端实现，Slave端网络的实现类
+     */
     private final HAClient haClient;
 
     public HAService(final DefaultMessageStore defaultMessageStore) throws IOException {

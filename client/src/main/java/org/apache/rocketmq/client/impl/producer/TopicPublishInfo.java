@@ -23,10 +23,22 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 
+/**
+ * 主题的路由信息
+ */
 public class TopicPublishInfo {
+    /**
+     * 是否是顺序消息
+     */
     private boolean orderTopic = false;
     private boolean haveTopicRouterInfo = false;
+    /**
+     * 该主题队列的消息队列
+     */
     private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();
+    /**
+     * 每选择一次消息队列，该值会自增1，如果Integer.MAX_VALUE，则重置为0，用于选择消息队列
+     */
     private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();
     private TopicRouteData topicRouteData;
 
@@ -66,10 +78,21 @@ public class TopicPublishInfo {
         this.haveTopicRouterInfo = haveTopicRouterInfo;
     }
 
+    /**
+     * 该算法在一次消息发送过程中能成功规避故障的Broker，但如果Broker宕机，由于路由算法中的消息队列是按Broker排序的，
+     * 如果上一次根据路由算法选择的是宕机的Broker的第一个队列，那么随后的下次选择的是宕机Broker的第二个队列，消息发送很有可能会失败，再次引发重试，带来不必要的性能损耗，
+     * 那么有什么方法在一次消息发送失败后，暂时将该Broker排除在消息队列选择范围外呢？
+     * 如果能引入一种机制，在Broker宕机期间，如果一次消息发送失败后，可以将该Broker暂时排除在消息队列的选择范围中（Broker故障延迟机制）
+     * @param lastBrokerName
+     * @return
+     */
     public MessageQueue selectOneMessageQueue(final String lastBrokerName) {
+        // 上一次选择的执行发送消息失败的Broker
         if (lastBrokerName == null) {
+            // 第一次执行消息队列选择
             return selectOneMessageQueue();
         } else {
+            // 消息发送之前失败过的话，再进行消息队列选择时规避上次MesageQueue所在的Broker，否则还是很有可能再次失败
             int index = this.sendWhichQueue.getAndIncrement();
             for (int i = 0; i < this.messageQueueList.size(); i++) {
                 int pos = Math.abs(index++) % this.messageQueueList.size();
@@ -84,8 +107,14 @@ public class TopicPublishInfo {
         }
     }
 
+    /**
+     * 消息队列选择
+     * @return
+     */
     public MessageQueue selectOneMessageQueue() {
+        // 直接用sendWhichQueue自增再获取值
         int index = this.sendWhichQueue.getAndIncrement();
+        // 绝对值与当前路由表中消息队列个数取模，返回该位置的MessageQueue
         int pos = Math.abs(index) % this.messageQueueList.size();
         if (pos < 0)
             pos = 0;

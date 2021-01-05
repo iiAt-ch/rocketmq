@@ -17,6 +17,7 @@
 package org.apache.rocketmq.store.config;
 
 import java.io.File;
+
 import org.apache.rocketmq.common.annotation.ImportantField;
 import org.apache.rocketmq.store.ConsumeQueue;
 
@@ -26,13 +27,22 @@ public class MessageStoreConfig {
     private String storePathRootDir = System.getProperty("user.home") + File.separator + "store";
 
     //The directory in which the commitlog is kept
+    /**
+     * commitLog存储路径，默认$HOME/store/commitlog
+     */
     @ImportantField
     private String storePathCommitLog = System.getProperty("user.home") + File.separator + "store"
-        + File.separator + "commitlog";
+            + File.separator + "commitlog";
 
     // CommitLog file size,default is 1G
+    /**
+     * commintLog每个文件的大小
+     */
     private int mapedFileSizeCommitLog = 1024 * 1024 * 1024;
     // ConsumeQueue file size,default is 30W
+    /**
+     * ConsumeQueue每个文件默认存30万条，根据业务情况调整
+     */
     private int mapedFileSizeConsumeQueue = 300000 * ConsumeQueue.CQ_STORE_UNIT_SIZE;
     // enable consume queue ext
     private boolean enableConsumeQueueExt = false;
@@ -63,7 +73,11 @@ public class MessageStoreConfig {
     private boolean flushCommitLogTimed = false;
     // ConsumeQueue flush interval
     private int flushIntervalConsumeQueue = 1000;
-    // Resource reclaim interval
+    /**
+     * Resource reclaim interval
+     * <p>
+     * 消息清理扫描间隔
+     */
     private int cleanResourceInterval = 10000;
     // CommitLog removal interval
     private int deleteCommitLogFilesInterval = 100;
@@ -71,11 +85,22 @@ public class MessageStoreConfig {
     private int deleteConsumeQueueFilesInterval = 100;
     private int destroyMapedFileIntervalForcibly = 1000 * 120;
     private int redeleteHangedFileInterval = 1000 * 120;
-    // When to delete,default is at 4 am
+    /**
+     * When to delete,default is at 4 am
+     * <p>
+     * 清理时机，默认每天凌晨4点，由broker配置参数deleteWhen决定；或者磁盘空间达到阈值
+     */
     @ImportantField
     private String deleteWhen = "04";
+    /**
+     * 检测物理文件磁盘空间
+     */
     private int diskMaxUsedSpaceRatio = 75;
-    // The number of hours to keep a log file before deleting it (in hours)
+    /**
+     * The number of hours to keep a log file before deleting it (in hours)
+     * <p>
+     * 文件保留时长，默认72小时
+     */
     @ImportantField
     private int fileReservedTime = 72;
     // Flow control for ConsumeQueue
@@ -97,21 +122,39 @@ public class MessageStoreConfig {
     private int flushCommitLogThoroughInterval = 1000 * 10;
     private int commitCommitLogThoroughInterval = 200;
     private int flushConsumeQueueThoroughInterval = 1000 * 60;
+    /**
+     * 单次pull消息（内存）传输的最大字节数
+     */
     @ImportantField
     private int maxTransferBytesOnMessageInMemory = 1024 * 256;
+    /**
+     * 单次pull消息（内存）传输的最大条数
+     */
     @ImportantField
     private int maxTransferCountOnMessageInMemory = 32;
+    /**
+     * 单次pull消息（磁盘）传输的最大字节数
+     */
     @ImportantField
     private int maxTransferBytesOnMessageInDisk = 1024 * 64;
+    /**
+     * 单次pull消息（磁盘）传输的最大条数
+     */
     @ImportantField
     private int maxTransferCountOnMessageInDisk = 8;
     @ImportantField
     private int accessMessageInMemoryMaxRatio = 40;
+    /**
+     * 是否开启消息索引功能
+     */
     @ImportantField
     private boolean messageIndexEnable = true;
     private int maxHashSlotNum = 5000000;
     private int maxIndexNum = 5000000 * 4;
     private int maxMsgsNumBatch = 64;
+    /**
+     * 是否提供安全的消息索引机制，索引保证不丢
+     */
     @ImportantField
     private boolean messageIndexSafe = false;
     private int haListenPort = 10912;
@@ -121,13 +164,30 @@ public class MessageStoreConfig {
     @ImportantField
     private String haMasterAddress = null;
     private int haSlaveFallbehindMax = 1024 * 1024 * 256;
+    /**
+     * Broker的角色
+     * -ASYNC_MASTER异步复制Master
+     * -SYNC_MASTER同步双写Master
+     * -SLAVE
+     */
     @ImportantField
     private BrokerRole brokerRole = BrokerRole.ASYNC_MASTER;
+    /**
+     * 刷盘方式 -ASYNC_FLUSH异步刷盘 -SYNC_FLUSH同步刷盘
+     */
     @ImportantField
     private FlushDiskType flushDiskType = FlushDiskType.ASYNC_FLUSH;
     private int syncFlushTimeout = 1000 * 5;
+    /**
+     * 设置固定精度的消息延时投递的时间
+     */
     private String messageDelayLevel = "1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h";
     private long flushDelayOffsetInterval = 1000 * 10;
+    /**
+     * 磁盘满，且无过期文件情况下
+     * TRUE表示强制删除文件，优先保证服务可用
+     * FALSE标记服务不可用，文件不删除
+     */
     @ImportantField
     private boolean cleanFileForciblyEnable = true;
     private boolean warmMapedFileEnable = false;
@@ -611,7 +671,7 @@ public class MessageStoreConfig {
      */
     public boolean isTransientStorePoolEnable() {
         return transientStorePoolEnable && FlushDiskType.ASYNC_FLUSH == getFlushDiskType()
-            && BrokerRole.SLAVE != getBrokerRole();
+                && BrokerRole.SLAVE != getBrokerRole();
     }
 
     public void setTransientStorePoolEnable(final boolean transientStorePoolEnable) {

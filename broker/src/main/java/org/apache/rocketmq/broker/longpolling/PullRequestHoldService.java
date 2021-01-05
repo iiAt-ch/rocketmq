@@ -28,6 +28,7 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.ConsumeQueueExt;
+import org.apache.rocketmq.store.DefaultMessageStore;
 
 public class PullRequestHoldService extends ServiceThread {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -63,6 +64,9 @@ public class PullRequestHoldService extends ServiceThread {
         return sb.toString();
     }
 
+    /**
+     * 当consumer拉消息时，broker端如果没有新消息，broker会通过PullRequestHoldService服务hold住这个请求
+     */
     @Override
     public void run() {
         log.info("{} service started", this.getServiceName());
@@ -113,6 +117,17 @@ public class PullRequestHoldService extends ServiceThread {
         notifyMessageArriving(topic, queueId, maxOffset, null, 0, null, null);
     }
 
+    /**
+     * Broker通过{@link DefaultMessageStore.ReputMessageService#doReput()}异步构建ConsumeQueue，并通过注册的MessageArrivingListener
+     * 通知PullRequestHoldService#notifyMessageArriving达到有消息，立即推送给consumer
+     * @param topic
+     * @param queueId
+     * @param maxOffset
+     * @param tagsCode
+     * @param msgStoreTime
+     * @param filterBitMap
+     * @param properties
+     */
     public void notifyMessageArriving(final String topic, final int queueId, final long maxOffset, final Long tagsCode,
         long msgStoreTime, byte[] filterBitMap, Map<String, String> properties) {
         String key = this.buildKey(topic, queueId);

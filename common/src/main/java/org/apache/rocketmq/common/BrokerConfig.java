@@ -29,15 +29,30 @@ public class BrokerConfig {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
 
     private String rocketmqHome = System.getProperty(MixAll.ROCKETMQ_HOME_PROPERTY, System.getenv(MixAll.ROCKETMQ_HOME_ENV));
+    /**
+     * Name Server地址
+     */
     @ImportantField
     private String namesrvAddr = System.getProperty(MixAll.NAMESRV_ADDR_PROPERTY, System.getenv(MixAll.NAMESRV_ADDR_ENV));
+    /**
+     * 本机IP地址，默认系统自动识别，但是某些多网卡机器会存在识别错误的情况，这种情况下可以人工配置。
+     */
     @ImportantField
     private String brokerIP1 = RemotingUtil.getLocalAddress();
     private String brokerIP2 = RemotingUtil.getLocalAddress();
+    /**
+     * 默认本机主机名
+     */
     @ImportantField
     private String brokerName = localHostName();
+    /**
+     * Broker所属哪个集群
+     */
     @ImportantField
     private String brokerClusterName = "DefaultCluster";
+    /**
+     * BrokerId,必须是大等于0的整数，0表示Master，>0表示Slave，一个Master可以挂多个Slave，Master和Slave通过BrokerName来配对
+     */
     @ImportantField
     private long brokerId = MixAll.MASTER_ID;
     private int brokerPermission = PermName.PERM_READ | PermName.PERM_WRITE;
@@ -58,8 +73,13 @@ public class BrokerConfig {
     /**
      * thread numbers for send message thread pool, since spin lock will be used by default since 4.0.x, the default
      * value is 1.
+     *
+     * 发消息线程池数量
      */
     private int sendMessageThreadPoolNums = 1; //16 + Runtime.getRuntime().availableProcessors() * 4;
+    /**
+     * 拉消息线程池数量
+     */
     private int pullMessageThreadPoolNums = 16 + Runtime.getRuntime().availableProcessors() * 2;
     private int queryMessageThreadPoolNums = 8 + Runtime.getRuntime().availableProcessors();
 

@@ -45,10 +45,17 @@ public class SlaveSynchronize {
         this.masterAddr = masterAddr;
     }
 
+    /**
+     * 元数据信息的同步
+     */
     public void syncAll() {
+        // 同步topic配置信息
         this.syncTopicConfig();
+        // 同步消费者偏移量Offset
         this.syncConsumerOffset();
+        // 同步延迟偏移量Offset
         this.syncDelayOffset();
+        // 订阅组配置信息
         this.syncSubscriptionGroupConfig();
     }
 

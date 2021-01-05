@@ -31,8 +31,10 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     @Override
     public void updateFaultItem(final String name, final long currentLatency, final long notAvailableDuration) {
+        // 根据broker名称从缓存表中获取FaultItem
         FaultItem old = this.faultItemTable.get(name);
         if (null == old) {
+            // 找不到就创建FaultItem
             final FaultItem faultItem = new FaultItem(name);
             faultItem.setCurrentLatency(currentLatency);
             faultItem.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
@@ -43,6 +45,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
                 old.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
             }
         } else {
+            // 如果找到则更新FaultItem
             old.setCurrentLatency(currentLatency);
             old.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
         }
@@ -72,6 +75,8 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         }
 
         if (!tmpList.isEmpty()) {
+            // 使用默认随机源对列表进行置换，所有置换发生的可能性都是大致相等的
+            // 通俗一点的说，就像洗牌一样，随机打乱原来的顺序
             Collections.shuffle(tmpList);
 
             Collections.sort(tmpList);
@@ -96,9 +101,21 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             '}';
     }
 
+    /**
+     * 失败条目（规避规则条目）
+     */
     class FaultItem implements Comparable<FaultItem> {
+        /**
+         * 条目唯一键，这里为brokerName
+         */
         private final String name;
+        /**
+         * 本次消息发送延迟
+         */
         private volatile long currentLatency;
+        /**
+         * 故障规避开始时间
+         */
         private volatile long startTimestamp;
 
         public FaultItem(final String name) {

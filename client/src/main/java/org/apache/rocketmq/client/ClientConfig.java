@@ -24,23 +24,45 @@ import org.apache.rocketmq.remoting.protocol.LanguageCode;
 
 /**
  * Client Common configuration
+ *
+ * 客户端的公共配置类
  */
 public class ClientConfig {
     public static final String SEND_MESSAGE_WITH_VIP_CHANNEL_PROPERTY = "com.rocketmq.sendMessageWithVIPChannel";
+    /**
+     * NameServer地址列表，多个nameServer地址用分号隔开
+     */
     private String namesrvAddr = System.getProperty(MixAll.NAMESRV_ADDR_PROPERTY, System.getenv(MixAll.NAMESRV_ADDR_ENV));
+    /**
+     * 客户端本机IP地址，某些机器会发生无法识别客户端IP地址情况，需要应用在代码中强制指定
+     */
     private String clientIP = RemotingUtil.getLocalAddress();
+    /**
+     * 客户端实例名称，客户端创建的多个Producer，Consumer实际是共用一个内部实例（这个实例包含网络连接，线程资源等）
+     */
     private String instanceName = System.getProperty("rocketmq.client.name", "DEFAULT");
+    /**
+     * 通信层异步回调线程数
+     */
     private int clientCallbackExecutorThreads = Runtime.getRuntime().availableProcessors();
     /**
      * Pulling topic information interval from the named server
+     *
+     * 轮询NameServer间隔时间，消费者/生产者每隔30秒从nameserver获取所有topic的最新队列情况，这意味着某个broker如果宕机，客户端最多要30秒才能感知，可手动配置
      */
     private int pollNameServerInterval = 1000 * 30;
     /**
      * Heartbeat interval in microseconds with message broker
+     *
+     * 消费者/生产者每隔30秒向所有broker发送心跳
+     * broker每隔10秒钟（此时间无法更改），扫描所有还存活的连接，若某个连接2分钟内（当前时间与最后更新时间差值超过2分钟，此时间无法更改）没有发送心跳数据，
+     * 则关闭连接，并向该消费者分组的所有消费者发出通知，分组内消费者重新分配队列继续消费
      */
     private int heartbeatBrokerInterval = 1000 * 30;
     /**
      * Offset persistent interval for consumer
+     *
+     * 持久化Consumer消费进度间隔时间，每隔一段时间将各个队列的消费进度存储到对应的broker上
      */
     private int persistConsumerOffsetInterval = 1000 * 5;
     private boolean unitMode = false;
@@ -51,6 +73,15 @@ public class ClientConfig {
 
     private LanguageCode language = LanguageCode.JAVA;
 
+    /**
+     * clientId为客户端IP+instance+（unitname可选）
+     * 如果在同一台物理服务器部署两个应用程序，应用程序岂不是clientId相同，会造成混乱？
+     * 为了避免这个问题，如果instance为默认值DEFAULT的话，RocketMQ会自动将instance设置为进程ID，这样避免了不同进程的相互影响，
+     * 但同一个JVM中的不同消费者和不同生产者在启动时获取到的MQClientInstane实例都是同一个。
+     * 根据后面的介绍，MQClientInstance封装了RocketMQ网络处理API，是消息生产者（Producer）、消息消费者（Consumer）与NameServer、Broker打交道的网络通道。
+     *
+     * @return
+     */
     public String buildMQClientId() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.getClientIP());

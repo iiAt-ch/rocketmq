@@ -404,11 +404,14 @@ public class BrokerController {
                     this.updateMasterHAServerAddrPeriodically = true;
                 }
 
+                // scheduleAtFixedRate(commod,initialDelay,period,unit)
+                // 10s后开启只有一个线程的定时任务，每60s从主节点同步一次配置数据
                 this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
                     @Override
                     public void run() {
                         try {
+                            // Broker角色识别，为Slave则启动同步定时任务，由Netty实现，进行元数据信息的同步
                             BrokerController.this.slaveSynchronize.syncAll();
                         } catch (Throwable e) {
                             log.error("ScheduledTask syncAll slave exception", e);
@@ -855,8 +858,14 @@ public class BrokerController {
             this.filterServerManager.start();
         }
 
+        /**
+         * Broker启动时向集群中所有的NameServer发送心跳语句
+         */
         this.registerBrokerAll(true, false, true);
 
+        /**
+         * todo Broker每隔30s向集群中所有NameServer发送心跳包
+         */
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
