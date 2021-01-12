@@ -33,6 +33,7 @@ import org.apache.rocketmq.store.config.BrokerRole;
 
 /**
  * Create MappedFile in advance
+ * 创建MappedFile服务类
  */
 public class AllocateMappedFileService extends ServiceThread {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);

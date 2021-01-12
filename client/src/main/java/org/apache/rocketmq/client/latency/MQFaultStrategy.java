@@ -1,26 +1,22 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE
+ * file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file
+ * to You under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.apache.rocketmq.client.latency;
 
 import org.apache.rocketmq.client.impl.producer.TopicPublishInfo;
 import org.apache.rocketmq.client.log.ClientLogger;
-import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.message.MessageQueue;
+import org.apache.rocketmq.logging.InternalLogger;
 
 /**
  * 消息失败策略，延迟实现的门面类
@@ -63,9 +59,7 @@ public class MQFaultStrategy {
     }
 
     /**
-     * 选择消息队列有两种方式
-     * 1）sendLatencyFaultEnable=false，默认不启用Broker故障延迟机制
-     * 2）sendLatencyFaultEnable=true，启用Broker故障延迟机制
+     * todo 选择消息队列有两种方式 1）sendLatencyFaultEnable=false，默认不启用Broker故障延迟机制 2）sendLatencyFaultEnable=true，启用Broker故障延迟机制
      *
      * @param tpInfo
      * @param lastBrokerName
@@ -95,7 +89,7 @@ public class MQFaultStrategy {
                 // 从容错信息中取一个Broker
                 final String notBestBroker = latencyFaultTolerance.pickOneAtLeast();
                 int writeQueueNums = tpInfo.getQueueIdByBroker(notBestBroker);
-                //  有可写队列
+                // 有可写队列
                 if (writeQueueNums > 0) {
                     // 往后取一个
                     final MessageQueue mq = tpInfo.selectOneMessageQueue();

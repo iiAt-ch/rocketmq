@@ -24,6 +24,14 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.config.StorePathConfigHelper;
 
+/**
+ * 消息消费队列，消息到达CommitLog文件后，将异步转发到消息消费队列，供消息消费者消费
+ *
+ * RocketMQ基于主题订阅模式实现消息消费，消费者关心的是一个主题下的所有消息，但由于同一主题的消息不连续地存储在commitlog文件中，
+ * 试想一下如果消息消费者直接从消息存储文件（commitlog）中去遍历查找订阅主题下的消息，效率将极其低下，RocketMQ为了适应消息消费的检索需求，
+ * 设计了消息消费队列文件（Consumequeue），该文件可以看成是Commitlog关于消息消费的“索引”文件，
+ * consumequeue的第一级目录为消息主题，第二级目录为主题的消息队列
+ */
 public class ConsumeQueue {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
@@ -151,9 +159,17 @@ public class ConsumeQueue {
         }
     }
 
+    /**
+     * 根据消息存储时间来查找偏移量
+     *
+     * @param timestamp
+     * @return
+     */
     public long getOffsetInQueueByTime(final long timestamp) {
+        // Step1：首先根据时间戳定位到物理文件
         MappedFile mappedFile = this.mappedFileQueue.getMappedFileByTime(timestamp);
         if (mappedFile != null) {
+            // Step2：采用二分查找来加速检索
             long offset = 0;
             int low = minLogicOffset > mappedFile.getFileFromOffset() ? (int) (minLogicOffset - mappedFile.getFileFromOffset()) : 0;
             int high = 0;
@@ -482,16 +498,26 @@ public class ConsumeQueue {
         }
     }
 
+    /**
+     * 根据startIndex获取消息消费队列条目
+     *
+     * @param startIndex
+     * @return
+     */
     public SelectMappedBufferResult getIndexBuffer(final long startIndex) {
         int mappedFileSize = this.mappedFileSize;
+        // startIndex*20得到在consumequeue中的物理偏移量
         long offset = startIndex * CQ_STORE_UNIT_SIZE;
         if (offset >= this.getMinLogicOffset()) {
+            // 如果大于minLogicOffset，则根据偏移量定位到具体的物理文件
             MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset);
             if (mappedFile != null) {
+                // 通过offset与物理文大小取模获取在该文件的偏移量，从而从偏移量开始连续读取20个字节即可
                 SelectMappedBufferResult result = mappedFile.selectMappedBuffer((int) (offset % mappedFileSize));
                 return result;
             }
         }
+        // 如果该offset小于minLogicOffset，则返回null，说明该消息已被删除
         return null;
     }
 

@@ -1,18 +1,14 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE
+ * file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file
+ * to You under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 
 package org.apache.rocketmq.client.latency;
@@ -22,6 +18,7 @@ import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+
 import org.apache.rocketmq.client.common.ThreadLocalIndex;
 
 public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> {
@@ -37,6 +34,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             // 找不到就创建FaultItem
             final FaultItem faultItem = new FaultItem(name);
             faultItem.setCurrentLatency(currentLatency);
+            // 当前时间+需要规避的时长
             faultItem.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
 
             old = this.faultItemTable.putIfAbsent(name, faultItem);
@@ -95,10 +93,8 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     @Override
     public String toString() {
-        return "LatencyFaultToleranceImpl{" +
-            "faultItemTable=" + faultItemTable +
-            ", whichItemWorst=" + whichItemWorst +
-            '}';
+        return "LatencyFaultToleranceImpl{" + "faultItemTable=" + faultItemTable + ", whichItemWorst=" + whichItemWorst
+            + '}';
     }
 
     /**
@@ -114,7 +110,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
          */
         private volatile long currentLatency;
         /**
-         * 故障规避开始时间
+         * 故障规避开始时间（规避结束时间），设置值为当前时间+需要规避的时长
          */
         private volatile long startTimestamp;
 
@@ -154,8 +150,8 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         @Override
         public int hashCode() {
             int result = getName() != null ? getName().hashCode() : 0;
-            result = 31 * result + (int) (getCurrentLatency() ^ (getCurrentLatency() >>> 32));
-            result = 31 * result + (int) (getStartTimestamp() ^ (getStartTimestamp() >>> 32));
+            result = 31 * result + (int)(getCurrentLatency() ^ (getCurrentLatency() >>> 32));
+            result = 31 * result + (int)(getStartTimestamp() ^ (getStartTimestamp() >>> 32));
             return result;
         }
 
@@ -166,7 +162,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             if (!(o instanceof FaultItem))
                 return false;
 
-            final FaultItem faultItem = (FaultItem) o;
+            final FaultItem faultItem = (FaultItem)o;
 
             if (getCurrentLatency() != faultItem.getCurrentLatency())
                 return false;
@@ -178,11 +174,8 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
         @Override
         public String toString() {
-            return "FaultItem{" +
-                "name='" + name + '\'' +
-                ", currentLatency=" + currentLatency +
-                ", startTimestamp=" + startTimestamp +
-                '}';
+            return "FaultItem{" + "name='" + name + '\'' + ", currentLatency=" + currentLatency + ", startTimestamp="
+                + startTimestamp + '}';
         }
 
         public String getName() {

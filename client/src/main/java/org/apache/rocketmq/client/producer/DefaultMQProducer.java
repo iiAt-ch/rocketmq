@@ -131,6 +131,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * This may potentially cause message duplication which is up to application developers to resolve.
      *
      * 异步方式发送消息重试次数，默认为2
+     * 但是重试的调用入口是在收到服务端响应包时进行的，如果出现网络异常、网络超时等将不会重试。
      */
     private int retryTimesWhenSendAsyncFailed = 2;
 
@@ -145,6 +146,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * Maximum allowed message size in bytes.
      *
      * 客户端限制的消息大小，超过报错，同时服务端也会限制（默认4M）
+     * 批量发也一样，一批总长度不能超过这个
      */
     private int maxMessageSize = 1024 * 1024 * 4; // 4M
 
@@ -782,6 +784,12 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
         this.defaultMQProducerImpl.setAsyncSenderExecutor(asyncSenderExecutor);
     }
 
+    /**
+     * 将一批消息封装成MessageBatch对象
+     * @param msgs
+     * @return
+     * @throws MQClientException
+     */
     private MessageBatch batch(Collection<Message> msgs) throws MQClientException {
         MessageBatch msgBatch;
         try {

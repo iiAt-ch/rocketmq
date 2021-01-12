@@ -248,6 +248,15 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         return response;
     }
 
+    /**
+     * 如果消息重试次数超过允许的最大重试次数，消息将进入到DLD延迟队列。延迟队列主题：%DLQ%+消费组名，延迟队列在消息消费时将重点讲解
+     * @param requestHeader
+     * @param response
+     * @param request
+     * @param msg
+     * @param topicConfig
+     * @return
+     */
     private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, RemotingCommand response,
                                       RemotingCommand request,
                                       MessageExt msg, TopicConfig topicConfig) {
@@ -292,6 +301,15 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         return true;
     }
 
+    /**
+     * 同步发送
+     * @param ctx
+     * @param request
+     * @param sendMessageContext
+     * @param requestHeader
+     * @return
+     * @throws RemotingCommandException
+     */
     private RemotingCommand sendMessage(final ChannelHandlerContext ctx,
                                         final RemotingCommand request,
                                         final SendMessageContext sendMessageContext,
@@ -315,6 +333,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         }
 
         response.setCode(-1);
+        // Step1：检查消息发送是否合理
         super.msgCheck(ctx, requestHeader, response);
         if (response.getCode() != -1) {
             return response;
@@ -333,6 +352,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         msgInner.setTopic(requestHeader.getTopic());
         msgInner.setQueueId(queueIdInt);
 
+        // Step2：如果消息重试次数超过允许的最大重试次数，消息将进入到DLD延迟队列。延迟队列主题：%DLQ%+消费组名，延迟队列在消息消费时将重点讲解
         if (!handleRetryAndDLQ(requestHeader, response, request, msgInner, topicConfig)) {
             return response;
         }
@@ -348,6 +368,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         PutMessageResult putMessageResult = null;
         Map<String, String> oriProps = MessageDecoder.string2messageProperties(requestHeader.getProperties());
         String traFlag = oriProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
+        // Step3：调用DefaultMessageStore#putMessage进行消息存储
         if (traFlag != null && Boolean.parseBoolean(traFlag)) {
             if (this.brokerController.getBrokerConfig().isRejectTransactionMessage()) {
                 response.setCode(ResponseCode.NO_PERMISSION);

@@ -40,6 +40,14 @@ public abstract class ReferenceResource {
         return this.available;
     }
 
+    /**
+     * 初次调用时this.available为true，设置available为false，并设置初次关闭的时间戳（firstShutdownTimestamp）为当前时间戳，
+     * 然后调用release（）方法尝试释放资源，release只有在引用次数小于1的情况下才会释放资源；
+     * 如果引用次数大于0，对比当前时间与firstShutdownTimestamp，如果已经超过了其最大拒绝存活期，
+     * 每执行一次，将引用数减少1000，直到引用数小于0时通过执行realse方法释放资源
+     *
+     * @param intervalForcibly
+     */
     public void shutdown(final long intervalForcibly) {
         if (this.available) {
             this.available = false;
@@ -53,6 +61,9 @@ public abstract class ReferenceResource {
         }
     }
 
+    /**
+     * 将引用次数减1，如果引用数小于等于0，则执行cleanup方法
+     */
     public void release() {
         long value = this.refCount.decrementAndGet();
         if (value > 0)

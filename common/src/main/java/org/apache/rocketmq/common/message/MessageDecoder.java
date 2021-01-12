@@ -484,6 +484,7 @@ public class MessageDecoder {
 
     public static byte[] encodeMessages(List<Message> messages) {
         //TO DO refactor, accumulate in one buffer, avoid copies
+        // MessageBatch将该集合中的每条消息的消息体body聚合成一个byte[]数值，在消息服务端能够从该byte[]数值中正确解析出消息即可
         List<byte[]> encodedMessages = new ArrayList<byte[]>(messages.size());
         int allSize = 0;
         for (Message message : messages) {

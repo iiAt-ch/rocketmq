@@ -18,16 +18,40 @@ package org.apache.rocketmq.common;
 
 import org.apache.rocketmq.common.constant.PermName;
 
+/**
+ * 在NameServer端存储主题的配置信息，默认路径：${ROCKET_HOME}/store/config/topic.json
+ */
 public class TopicConfig {
     private static final String SEPARATOR = " ";
     public static int defaultReadQueueNums = 16;
     public static int defaultWriteQueueNums = 16;
+    /**
+     * 主题名称
+     */
     private String topicName;
+    /**
+     * 读队列数量
+     */
     private int readQueueNums = defaultReadQueueNums;
+    /**
+     * 写队列数量
+     */
     private int writeQueueNums = defaultWriteQueueNums;
+    /**
+     * 权限码，默认读+写
+     */
     private int perm = PermName.PERM_READ | PermName.PERM_WRITE;
+    /**
+     * 主题过滤方式，当前版本仅支持SINGLE_TAG
+     */
     private TopicFilterType topicFilterType = TopicFilterType.SINGLE_TAG;
+    /**
+     * 当前版本暂为保留
+     */
     private int topicSysFlag = 0;
+    /**
+     * 是否是顺序消息
+     */
     private boolean order = false;
 
     public TopicConfig() {
