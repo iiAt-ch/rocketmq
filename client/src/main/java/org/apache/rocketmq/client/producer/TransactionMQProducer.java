@@ -21,6 +21,9 @@ import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.remoting.RPCHook;
 
+/**
+ * 事务消息发送者
+ */
 public class TransactionMQProducer extends DefaultMQProducer {
     private TransactionCheckListener transactionCheckListener;
     /**
@@ -36,10 +39,13 @@ public class TransactionMQProducer extends DefaultMQProducer {
      */
     private int checkRequestHoldMax = 2000;
 
+    /**
+     * 事务状态回查异步执行线程池
+     */
     private ExecutorService executorService;
 
     /**
-     * 事物消息回查监听器，如果发送事务消息，必须设置
+     * 事务监听器，主要定义实现本地事务状态执行、本地事务状态回查两个接口，如果发送事务消息，必须设置
      */
     private TransactionListener transactionListener;
 
@@ -85,6 +91,7 @@ public class TransactionMQProducer extends DefaultMQProducer {
     public TransactionSendResult sendMessageInTransaction(final Message msg,
         final Object arg) throws MQClientException {
         if (null == this.transactionListener) {
+            // 如果事件监听器为空，则直接返回异常
             throw new MQClientException("TransactionListener is null", null);
         }
 

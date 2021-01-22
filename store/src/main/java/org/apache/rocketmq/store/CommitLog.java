@@ -41,6 +41,7 @@ import org.apache.rocketmq.store.schedule.ScheduleMessageService;
 
 /**
  * Store all metadata downtime for recovery, data protection reliability
+ * ${ROCKET_HOME}/store/commitlog/xxx
  * 消息存储文件，所有消息主题的消息都存储在CommitLog文件中
  */
 public class CommitLog {
@@ -161,6 +162,7 @@ public class CommitLog {
 
     /**
      * When the normal exit, data recovery, all memory data have been flush
+     * Broker正常停止文件恢复
      */
     public void recoverNormally(long maxPhyOffsetOfConsumeQueue) {
         boolean checkCRCOnRecover = this.defaultMessageStore.getMessageStoreConfig().isCheckCRCOnRecover();
@@ -494,6 +496,7 @@ public class CommitLog {
     private boolean isMappedFileMatchedRecover(final MappedFile mappedFile) {
         ByteBuffer byteBuffer = mappedFile.sliceByteBuffer();
 
+        // 首先判断文件的魔数，如果不是MESSAGE_MAGIC_CODE，返回false，表示该文件不符合commitlog消息文件的存储格式
         int magicCode = byteBuffer.getInt(MessageDecoder.MESSAGE_MAGIC_CODE_POSTION);
         if (magicCode != MESSAGE_MAGIC_CODE) {
             return false;
@@ -648,9 +651,17 @@ public class CommitLog {
         return putMessageResult;
     }
 
+    /**
+     * 处理刷盘
+     *
+     * @param result
+     * @param putMessageResult
+     * @param messageExt
+     */
     public void handleDiskFlush(AppendMessageResult result, PutMessageResult putMessageResult, MessageExt messageExt) {
         // Synchronization flush
         if (FlushDiskType.SYNC_FLUSH == this.defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
+            // 同步刷盘，指的是在消息追加到内存映射文件的内存中后，立即将数据从内存刷写到磁盘文件
             final GroupCommitService service = (GroupCommitService) this.flushCommitLogService;
             if (messageExt.isWaitStoreMsgOK()) {
                 GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes());
@@ -1078,7 +1089,13 @@ public class CommitLog {
     }
 
     public static class GroupCommitRequest {
+        /**
+         * 刷盘点偏移量
+         */
         private final long nextOffset;
+        /**
+         * 倒记数锁存器
+         */
         private final CountDownLatch countDownLatch = new CountDownLatch(1);
         private volatile boolean flushOK = false;
 
@@ -1097,6 +1114,7 @@ public class CommitLog {
 
         public boolean waitForFlush(long timeout) {
             try {
+                // 调用阻塞等待刷盘结果
                 this.countDownLatch.await(timeout, TimeUnit.MILLISECONDS);
                 return this.flushOK;
             } catch (InterruptedException e) {

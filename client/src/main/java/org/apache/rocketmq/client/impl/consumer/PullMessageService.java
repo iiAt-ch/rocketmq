@@ -27,6 +27,10 @@ import org.apache.rocketmq.common.ServiceThread;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.utils.ThreadUtils;
 
+/**
+ * RocketMQ使用一个单独的线程PullMessageService来负责消息的拉取
+ * 消息拉取服务线程，run方法是其核心逻辑
+ */
 public class PullMessageService extends ServiceThread {
     private final InternalLogger log = ClientLogger.getLog();
     private final LinkedBlockingQueue<PullRequest> pullRequestQueue = new LinkedBlockingQueue<PullRequest>();
@@ -76,9 +80,15 @@ public class PullMessageService extends ServiceThread {
         return scheduledExecutorService;
     }
 
+    /**
+     * 进行消息拉取
+     * @param pullRequest
+     */
     private void pullMessage(final PullRequest pullRequest) {
+        // 根据消费组名从MQClientInstance中获取消费者内部实现类MQConsumerInner
         final MQConsumerInner consumer = this.mQClientFactory.selectConsumer(pullRequest.getConsumerGroup());
         if (consumer != null) {
+            // consumer强制转换为DefaultMQPushConsumerImpl，也就是PullMessageService，该线程只为PUSH模式服务
             DefaultMQPushConsumerImpl impl = (DefaultMQPushConsumerImpl) consumer;
             impl.pullMessage(pullRequest);
         } else {
@@ -90,9 +100,12 @@ public class PullMessageService extends ServiceThread {
     public void run() {
         log.info(this.getServiceName() + " service started");
 
+        // 这是一种通用的设计技巧，stopped声明为volatile，每执行一次业务逻辑检测一下其运行状态，可以通过其他线程将stopped设置为true从而停止该线程
         while (!this.isStopped()) {
             try {
+                // 获取一个PullRequest消息拉取任务，如果pullRequestQueue为空，则线程将阻塞，直到有拉取任务被放入
                 PullRequest pullRequest = this.pullRequestQueue.take();
+                // 进行消息拉取
                 this.pullMessage(pullRequest);
             } catch (InterruptedException ignored) {
             } catch (Exception e) {

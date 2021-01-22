@@ -91,7 +91,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      *
      * This field defaults to clustering.
      *
-     * 消息模型，支持以下两种1.集群消费2.广播消费
+     * 消息消费模式，支持以下两种1.集群消费2.广播消费
      */
     private MessageModel messageModel = MessageModel.CLUSTERING;
 
@@ -127,6 +127,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * </ul>
      *
      * Consumer启动后，默认从什么位置开始消费
+     * 根据消息进度从消息服务器拉取不到消息时重新计算消费策略
      */
     private ConsumeFromWhere consumeFromWhere = ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET;
 
@@ -141,7 +142,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     /**
      * Queue allocation algorithm specifying how message queues are allocated to each consumer clients.
      *
-     * Rebalance算法实现策略，默认 {@link AllocateMessageQueueAveragely}
+     * 集群模式下消息队列负载策略，Rebalance算法实现策略，默认 {@link AllocateMessageQueueAveragely}
      */
     private AllocateMessageQueueStrategy allocateMessageQueueStrategy;
 
@@ -163,20 +164,22 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * Offset Storage
      *
      * 消费进度存储
+     * 如果从消息进度服务OffsetStore读取到MessageQueue中的偏移量不小于0，则使用读取到的偏移量，只有在读到的偏移量小于0时，
+     * 上述consumeFromWhere策略才会生效
      */
     private OffsetStore offsetStore;
 
     /**
      * Minimum consumer thread number
      *
-     * 消费线程池数量
+     * 消费最小线程池数量，由于消费者线程池使用无界队列，故消费者线程个数其实最多只有consumeThreadMin个
      */
     private int consumeThreadMin = 20;
 
     /**
      * Max consumer thread number
      *
-     * 消费线程池数量
+     * 消费最大线程池数量，由于消费者线程池使用无界队列，故消费者线程个数其实最多只有consumeThreadMin个
      */
     private int consumeThreadMax = 64;
 
@@ -189,6 +192,8 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * Concurrently max span offset.it has no effect on sequential consumption
      *
      * 单队列并行消费允许的最大跨度
+     * 并发消息消费时处理队列最大跨度，默认2000，表示如果消息处理队列中偏移量最大的消息与偏移量最小的消息的跨度超过2000
+     * 则延迟50毫秒后再拉取消息
      */
     private int consumeConcurrentlyMaxSpan = 2000;
 
@@ -246,6 +251,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      *
      * 批量消费，一次消费多少条消息
      * 消费消息数量，监听器每次接受本地队列的消息是多少条，可手动设置
+     * 消息并发消费时一次消费消息条数，通俗点说就是每次传入MessageListtener#consumeMessage中的消息条数
      */
     private int consumeMessageBatchMaxSize = 1;
 
@@ -258,6 +264,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     /**
      * Whether update subscription relationship when every pull
+     * 是否每次拉取消息都更新订阅信息，默认为false
      */
     private boolean postSubscriptionWhenPull = false;
 
@@ -272,16 +279,23 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      *
      * If messages are re-consumed more than {@link #maxReconsumeTimes} before success, it's be directed to a deletion
      * queue waiting.
+     *
+     * 最大消费重试次数。如果消息消费次数超过maxReconsumeTimes还未成功，则将该消息转移到一个失败队列，等待被删除
+     * -1 means 16 times
      */
     private int maxReconsumeTimes = -1;
 
     /**
      * Suspending pulling time for cases requiring slow pulling like flow-control scenario.
+     * 延迟将该队列的消息提交到消费者线程的等待时间，默认延迟1s
+     * 串行消费（Orderly）使用，如果返回ROLLBACK或者SUSPEND_CURRENT_QUEUE_A_MOMENT，再次消费的时间间隔
      */
     private long suspendCurrentQueueTimeMillis = 1000;
 
     /**
      * Maximum amount of time in minutes a message may block the consuming thread.
+     * 消息消费超时时间，默认为15，单位为分钟
+     * 如果消费超时，RocketMQ会等同于消费失败来处理
      */
     private long consumeTimeout = 15;
 

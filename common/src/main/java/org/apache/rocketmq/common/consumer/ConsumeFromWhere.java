@@ -16,7 +16,14 @@
  */
 package org.apache.rocketmq.common.consumer;
 
+/**
+ * 注意：如果从消息进度服务OffsetStore读取到MessageQueue中的偏移量不小于0，则使用读取到的偏移量，只有在读到的偏移量小于0时，
+ * 上述策略才会生效
+ */
 public enum ConsumeFromWhere {
+    /**
+     * 从队列当前最大偏移量开始消费
+     */
     CONSUME_FROM_LAST_OFFSET,
 
     @Deprecated
@@ -25,6 +32,12 @@ public enum ConsumeFromWhere {
     CONSUME_FROM_MIN_OFFSET,
     @Deprecated
     CONSUME_FROM_MAX_OFFSET,
+    /**
+     * 从队列当前最小偏移量开始消费
+     */
     CONSUME_FROM_FIRST_OFFSET,
+    /**
+     * 从消费者启动时间戳开始消费
+     */
     CONSUME_FROM_TIMESTAMP,
 }

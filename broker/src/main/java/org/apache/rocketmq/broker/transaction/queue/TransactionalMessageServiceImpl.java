@@ -121,6 +121,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
     public void check(long transactionTimeout, int transactionCheckMax,
         AbstractTransactionalMessageCheckListener listener) {
         try {
+            // 获取RMQ_SYS_TRANS_HALF_TOPIC主题下的所有消息队列，然后依次处理
             String topic = MixAll.RMQ_SYS_TRANS_HALF_TOPIC;
             Set<MessageQueue> msgQueues = transactionalMessageBridge.fetchMessageQueues(topic);
             if (msgQueues == null || msgQueues.size() == 0) {
@@ -130,6 +131,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             log.info("Check topic={}, queues={}", topic, msgQueues);
             for (MessageQueue messageQueue : msgQueues) {
                 long startTime = System.currentTimeMillis();
+                // 根据事务消息消费队列获取与之对应的消息队列，其实就是获取已处理消息的消息消费队列，其主题为：RMQ_SYS_TRANS_OP_HALF_TOPIC
                 MessageQueue opQueue = getOpQueue(messageQueue);
                 long halfOffset = transactionalMessageBridge.fetchConsumeOffset(messageQueue);
                 long opOffset = transactionalMessageBridge.fetchConsumeOffset(opQueue);
@@ -142,6 +144,8 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
 
                 List<Long> doneOpOffset = new ArrayList<>();
                 HashMap<Long, Long> removeMap = new HashMap<>();
+                // 根据当前的处理进度依次从已处理队列拉取32条消息，方便判断当前处理的消息是否已经处理过，
+                // 如果处理过则无须再次发送事务状态回查请求，避免重复发送事务回查请求
                 PullResult pullResult = fillOpRemoveMap(removeMap, opQueue, opOffset, halfOffset, doneOpOffset);
                 if (null == pullResult) {
                     log.error("The queue={} check msgOffset={} with opOffset={} failed, pullResult is null",

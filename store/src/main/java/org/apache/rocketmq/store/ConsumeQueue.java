@@ -25,6 +25,7 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.config.StorePathConfigHelper;
 
 /**
+ * ${ROCKET_HOME}/store/consumequeue/xxx
  * 消息消费队列，消息到达CommitLog文件后，将异步转发到消息消费队列，供消息消费者消费
  *
  * RocketMQ基于主题订阅模式实现消息消费，消费者关心的是一个主题下的所有消息，但由于同一主题的消息不连续地存储在commitlog文件中，

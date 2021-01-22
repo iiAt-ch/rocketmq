@@ -40,6 +40,7 @@ import org.apache.rocketmq.store.config.BrokerRole;
 
 /**
  * EndTransaction processor: process commit and rollback message
+ * Broker服务端的结束事务处理器
  */
 public class EndTransactionProcessor implements NettyRequestProcessor {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getLogger(LoggerName.TRANSACTION_LOGGER_NAME);
@@ -123,6 +124,7 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
         }
         OperationResult result = new OperationResult();
         if (MessageSysFlag.TRANSACTION_COMMIT_TYPE == requestHeader.getCommitOrRollback()) {
+            // 如果结束事务动作为提交事务，则执行提交事务逻辑
             result = this.brokerController.getTransactionalMessageService().commitMessage(requestHeader);
             if (result.getResponseCode() == ResponseCode.SUCCESS) {
                 RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
@@ -150,6 +152,8 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
                 return res;
             }
         }
+        // 事务状态为UN_KNOW时，结束事务时将不做任何处理
+
         response.setCode(result.getResponseCode());
         response.setRemark(result.getResponseRemark());
         return response;
