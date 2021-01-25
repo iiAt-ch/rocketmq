@@ -308,6 +308,7 @@ public class MQClientInstance {
             }
         }, 1000, this.clientConfig.getHeartbeatBrokerInterval(), TimeUnit.MILLISECONDS);
 
+        // 持久化消息消费进度。默认每5s持久化一次，可通过persistConsumerOffsetInterval设置
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -988,6 +989,10 @@ public class MQClientInstance {
         this.rebalanceService.wakeup();
     }
 
+    /**
+     * MQClientIinstance遍历已注册的消费者，对消费者执行doRebalance（）方法
+     * 对消费者订阅的主题进行一次队列重新分配
+     */
     public void doRebalance() {
         for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             MQConsumerInner impl = entry.getValue();

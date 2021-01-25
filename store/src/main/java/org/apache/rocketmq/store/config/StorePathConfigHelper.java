@@ -56,6 +56,12 @@ public class StorePathConfigHelper {
         return rootDir + File.separator + "lock";
     }
 
+    /**
+     * 延迟队列消息消费进度默认存储路径为${ROCKET_HOME}/store/config/delayOffset.json
+     *
+     * @param rootDir
+     * @return
+     */
     public static String getDelayOffsetStorePath(final String rootDir) {
         return rootDir + File.separator + "config" + File.separator + "delayOffset.json";
     }

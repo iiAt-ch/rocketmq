@@ -37,21 +37,39 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 
 /**
  * Local storage implementation
+ * 广播模式消息消费进度存储在消费者本地
  */
 public class LocalFileOffsetStore implements OffsetStore {
+    /**
+     * 消息进度存储目录
+     */
     public final static String LOCAL_OFFSET_STORE_DIR = System.getProperty(
         "rocketmq.client.localOffsetStoreDir",
         System.getProperty("user.home") + File.separator + ".rocketmq_offsets");
     private final static InternalLogger log = ClientLogger.getLog();
+    /**
+     * 消息客户端
+     */
     private final MQClientInstance mQClientFactory;
+    /**
+     * 消息消费组
+     */
     private final String groupName;
+    /**
+     * 消息进度存储文件，LOCAL_OFFSET_STORE_DIR/.rocketmq_offsets/{mQClientFactory.getClientId（）}/groupName/offsets.json
+     */
     private final String storePath;
+    /**
+     * 消息消费进度（内存）
+     * 广播模式消费进度与消费组没啥关系，直接保存MessageQueue:Offset
+     */
     private ConcurrentMap<MessageQueue, AtomicLong> offsetTable =
         new ConcurrentHashMap<MessageQueue, AtomicLong>();
 
     public LocalFileOffsetStore(MQClientInstance mQClientFactory, String groupName) {
         this.mQClientFactory = mQClientFactory;
         this.groupName = groupName;
+        // 消息进度存储文件，LOCAL_OFFSET_STORE_DIR/.rocketmq_offsets/{mQClientFactory.getClientId（）}/groupName/offsets.json
         this.storePath = LOCAL_OFFSET_STORE_DIR + File.separator +
             this.mQClientFactory.getClientId() + File.separator +
             this.groupName + File.separator +
@@ -130,6 +148,7 @@ public class LocalFileOffsetStore implements OffsetStore {
 
     @Override
     public void persistAll(Set<MessageQueue> mqs) {
+        // 持久化消息进度就是将ConcurrentMap<MessageQueue, AtomicLong> offsetTable序列化到磁盘文件中
         if (null == mqs || mqs.isEmpty())
             return;
 
@@ -180,6 +199,11 @@ public class LocalFileOffsetStore implements OffsetStore {
         return cloneOffsetTable;
     }
 
+    /**
+     * 首先从storePath中尝试加载，如果从该文件读取到内容为空，尝试从storePath+”.bak”中尝试加载，如果还是未找到，则返回null
+     * @return
+     * @throws MQClientException
+     */
     private OffsetSerializeWrapper readLocalOffset() throws MQClientException {
         String content = null;
         try {

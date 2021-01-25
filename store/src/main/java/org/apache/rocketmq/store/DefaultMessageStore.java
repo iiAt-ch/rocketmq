@@ -598,6 +598,7 @@ public class DefaultMessageStore implements MessageStore {
                                 }
                             }
 
+                            // 根据偏移量拉取消息后，首先根据ConsumeQueue条目进行消息过滤，如果不匹配则直接跳过该条消息，继续拉取下一条消息
                             if (messageFilter != null
                                 && !messageFilter.isMatchedByConsumeQueue(isTagsCodeLegal ? tagsCode : null, extRet ? cqExtUnit : null)) {
                                 if (getResult.getBufferTotalSize() == 0) {
@@ -1824,6 +1825,10 @@ public class DefaultMessageStore implements MessageStore {
 
     /**
      * 准实时转发CommitLog文件更新事件
+     *
+     * RocketMQ轮询机制由两个线程共同来完成。
+     * 1）PullRequestHoldService：每隔5s重试一次。
+     * 2）DefaultMessageStore#ReputMessageService，每处理一次重新拉取，Thread.sleep（1），继续下一次检查
      */
     class ReputMessageService extends ServiceThread {
 
@@ -1888,6 +1893,8 @@ public class DefaultMessageStore implements MessageStore {
                                     // 最终将分别调用CommitLogDispatcherBuildConsumeQueue（构建消息消费队列）、CommitLogDispatcherBuildIndex（构建索引文件）
                                     DefaultMessageStore.this.doDispatch(dispatchRequest);
 
+                                    // 如果Broker端开启了长轮询模式并且角色主节点，则最终将调用PullRequestHoldService线程的notifyMessageArriving方法
+                                    // 唤醒挂起线程，判断当前消费队列最大偏移量是否大于待拉取偏移量，如果大于则拉取消息。长轮询模式使得消息拉取能实现准实时
                                     if (BrokerRole.SLAVE != DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole()
                                         && DefaultMessageStore.this.brokerConfig.isLongPollingEnable()) {
                                         DefaultMessageStore.this.messageArrivingListener.arriving(dispatchRequest.getTopic(),

@@ -86,6 +86,14 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         return false;
     }
 
+    /**
+     *
+     * @param channel 网络通道，通过该通道向消息拉取客户端发送响应结果
+     * @param request 消息拉取请求
+     * @param brokerAllowSuspend Broker端是否支持挂起，处理消息拉取时默认传入true，表示支持如果未找到消息则挂起，如果该参数为false，未找到消息时直接返回客户端消息未找到
+     * @return
+     * @throws RemotingCommandException
+     */
     private RemotingCommand processRequest(final Channel channel, RemotingCommand request, boolean brokerAllowSuspend)
         throws RemotingCommandException {
         RemotingCommand response = RemotingCommand.createResponseCommand(PullMessageResponseHeader.class);
@@ -150,9 +158,11 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         ConsumerFilterData consumerFilterData = null;
         if (hasSubscriptionFlag) {
             try {
+                // 根据主题、消息过滤表达式构建订阅消息实体
                 subscriptionData = FilterAPI.build(
                     requestHeader.getTopic(), requestHeader.getSubscription(), requestHeader.getExpressionType()
                 );
+                // 如果是不是TAG模式，构建过滤数据ConsumeFilterData
                 if (!ExpressionType.isTagType(subscriptionData.getExpressionType())) {
                     consumerFilterData = ConsumerFilterManager.build(
                         requestHeader.getTopic(), requestHeader.getConsumerGroup(), requestHeader.getSubscription(),
@@ -408,12 +418,21 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                     break;
                 case ResponseCode.PULL_NOT_FOUND:
 
+                    // 如果brokerAllowSuspend为true，表示支持挂起，则将响应对象response设置为null，
+                    // 将不会立即向客户端写入响应，hasSuspendFlag参数在拉取消息时构建的拉取标记，默认为true
                     if (brokerAllowSuspend && hasSuspendFlag) {
+                        // 默认支持挂起，则根据是否开启长轮询来决定挂起方式，
+                        // 如果支持长轮询模式，挂起超时时间来源于请求参数，PUSH模式默认为15s,
+                        // PULL模式通过DefaultMQPullConsumer#brokerSuspenMaxTimeMillis设置，默认20s。
                         long pollingTimeMills = suspendTimeoutMillisLong;
                         if (!this.brokerController.getBrokerConfig().isLongPollingEnable()) {
+                            // 不支持长轮询
+                            // 则会在服务端等待shortPollingTimeMills(默认1s)时间后（挂起）再去判断消息是否已到达消息队列，
+                            // 如果消息未到达则提示消息拉取客户端PULL_NOT_FOUND
                             pollingTimeMills = this.brokerController.getBrokerConfig().getShortPollingTimeMills();
                         }
 
+                        // 然后创建拉取任务PullRequest并提交到PullRequestHoldService线程中
                         String topic = requestHeader.getTopic();
                         long offset = requestHeader.getQueueOffset();
                         int queueId = requestHeader.getQueueId();
@@ -539,6 +558,9 @@ public class PullMessageProcessor implements NettyRequestProcessor {
             @Override
             public void run() {
                 try {
+                    // Step4：这里的核心又回到长轮询的入口代码了，其核心是设置brokerAllowSuspend为false，
+                    // 表示不支持拉取线程挂起，即当根据偏移量无法获取消息时将不挂起线程等待新消息到来，
+                    // 而是直接返回告诉客户端本次消息拉取未找到消息
                     final RemotingCommand response = PullMessageProcessor.this.processRequest(channel, request, false);
 
                     if (response != null) {

@@ -557,15 +557,19 @@ public class CommitLog {
         if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
             || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
             // Delay Delivery
+            // 消息重试机制依托于定时任务实现
             if (msg.getDelayTimeLevel() > 0) {
                 if (msg.getDelayTimeLevel() > this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel()) {
                     msg.setDelayTimeLevel(this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel());
                 }
 
+                // 在存入Commitlog文件之前，如果消息的延迟级别delayTimeLevel大于0，
+                // 替换消息的主题与队列为定时任务主题“SCHEDULE_TOPIC_XXXX”，队列ID为延迟级别减1
                 topic = ScheduleMessageService.SCHEDULE_TOPIC;
                 queueId = ScheduleMessageService.delayLevel2QueueId(msg.getDelayTimeLevel());
 
                 // Backup real topic, queueId
+                // 再次将消息主题、队列存入消息的属性中
                 MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_TOPIC, msg.getTopic());
                 MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_QUEUE_ID, String.valueOf(msg.getQueueId()));
                 msg.setPropertiesString(MessageDecoder.messageProperties2String(msg.getProperties()));

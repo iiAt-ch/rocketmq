@@ -38,6 +38,8 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 
 /**
  * Remote storage implementation
+ * 集群模式消费进度存储
+ * 集群模式消息进度存储文件存放在消息服务端Broker
  */
 public class RemoteBrokerOffsetStore implements OffsetStore {
     private final static InternalLogger log = ClientLogger.getLog();
@@ -87,6 +89,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
                     }
                 }
                 case READ_FROM_STORE: {
+                    // 如果从磁盘读取，则发送网络请求
                     try {
                         long brokerOffset = this.fetchConsumeOffsetFromBroker(mq);
                         AtomicLong offset = new AtomicLong(brokerOffset);

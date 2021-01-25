@@ -29,6 +29,7 @@ import java.util.Map;
 /**
  * Support filter to retry topic.
  * <br>It will decode properties first in order to get real topic.
+ * 支持对重试主题的过滤
  */
 public class ExpressionForRetryMessageFilter extends ExpressionMessageFilter {
     public ExpressionForRetryMessageFilter(SubscriptionData subscriptionData, ConsumerFilterData consumerFilterData,

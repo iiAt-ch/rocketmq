@@ -81,6 +81,7 @@ public class PullAPIWrapper {
                 msgListFilterAgain = new ArrayList<MessageExt>(msgList.size());
                 for (MessageExt msg : msgList) {
                     if (msg.getTags() != null) {
+                        // 如果消息过滤模式为TAG模式，并且订阅TAG集合不为空，则对消息的tag进行判断，如果集合中包含消息的TAG则返回给消费者消费，否则跳过
                         if (subscriptionData.getTagsSet().contains(msg.getTags())) {
                             msgListFilterAgain.add(msg);
                         }

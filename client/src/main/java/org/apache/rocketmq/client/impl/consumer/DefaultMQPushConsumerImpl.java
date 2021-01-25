@@ -408,6 +408,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             }
         }
 
+        // 根据订阅消息构建消息拉取标记，设置subExpression、classFilter等与消息过滤相关
         String subExpression = null;
         boolean classFilter = false;
         SubscriptionData sd = this.rebalanceImpl.getSubscriptionInner().get(pullRequest.getMessageQueue().getTopic());
@@ -506,6 +507,16 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         log.info("resume this consumer, {}", this.defaultMQPushConsumer.getConsumerGroup());
     }
 
+    /**
+     * 发送ACK消息
+     * @param msg
+     * @param delayLevel
+     * @param brokerName
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     * @throws MQClientException
+     */
     public void sendMessageBack(MessageExt msg, int delayLevel, final String brokerName)
         throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
         try {
@@ -883,6 +894,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
     public void subscribe(String topic, String subExpression) throws MQClientException {
         try {
+            // Step1：消费者订阅消息主题与消息过滤表达式。构建订阅信息并加入到RebalanceImpl中，以便RebalanceImpl进行消息队列负载
             SubscriptionData subscriptionData = FilterAPI.buildSubscriptionData(this.defaultMQPushConsumer.getConsumerGroup(),
                 topic, subExpression);
             this.rebalanceImpl.getSubscriptionInner().put(topic, subscriptionData);
@@ -1015,6 +1027,8 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     @Override
     public void doRebalance() {
         if (!this.pause) {
+            // 每个DefaultMQPushConsumerImpl都持有一个单独的RebalanceImpl对象，
+            // 该方法主要是遍历订阅信息对每个主题的队列进行重新负载
             this.rebalanceImpl.doRebalance(this.isConsumeOrderly());
         }
     }
