@@ -51,6 +51,9 @@ public class NamesrvController {
 
     private final NettyServerConfig nettyServerConfig;
 
+    /**
+     * 该任务会在一次任务执行完毕后的间隔时间才会执行下一次任务
+     */
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(
         "NSScheduledThread"));
     private final KVConfigManager kvConfigManager;
@@ -80,7 +83,7 @@ public class NamesrvController {
 
     public boolean initialize() {
 
-        // 1.1 kvConfigManager.load() 加载KV配置
+        // 1.1 加载KV配置
         this.kvConfigManager.load();
 
         // 1.2 初始化通信层

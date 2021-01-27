@@ -184,18 +184,21 @@ public class BrokerConfig {
     /**
      * The minimum time of the transactional message  to be checked firstly, one message only exceed this time interval
      * that can be checked.
+     * 第一次事务回查最短等待时间，即超过6s才能回查，不然就再等60s
      */
     @ImportantField
     private long transactionTimeOut = 6 * 1000;
 
     /**
      * The maximum number of times the message was checked, if exceed this value, this message will be discarded.
+     * 事务回查最大检测次数，如果超过最大检测次数还是无法获知消息的事务状态，RocketMQ将不会继续对消息进行事务状态回查，而是直接丢弃即相当于回滚事务
      */
     @ImportantField
     private int transactionCheckMax = 15;
 
     /**
      * Transaction message check interval.
+     * Broker定时回查数据库事务部分（默认60s）
      */
     @ImportantField
     private long transactionCheckInterval = 60 * 1000;
