@@ -166,7 +166,12 @@ public abstract class RebalanceImpl {
         return false;
     }
 
+    /**
+     * 加锁的具体实现
+     */
     public void lockAll() {
+        // Step1:ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable，
+        // 将消息队列按照Broker组织成Map<String/*brokerName*,Set<MessageQueue>>，方便下一步向Broker发送锁定消息队列请求
         HashMap<String, Set<MessageQueue>> brokerMqs = this.buildProcessQueueTableByBrokerName();
 
         Iterator<Entry<String, Set<MessageQueue>>> it = brokerMqs.entrySet().iterator();
@@ -178,8 +183,10 @@ public abstract class RebalanceImpl {
             if (mqs.isEmpty())
                 continue;
 
+            // Master主节点
             FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(brokerName, MixAll.MASTER_ID, true);
             if (findBrokerResult != null) {
+                // Step2：向Broker（Master主节点）发送锁定消息队列，该方法返回成功被当前消费者锁定的消息消费队列
                 LockBatchRequestBody requestBody = new LockBatchRequestBody();
                 requestBody.setConsumerGroup(this.consumerGroup);
                 requestBody.setClientId(this.mQClientFactory.getClientId());
@@ -189,6 +196,7 @@ public abstract class RebalanceImpl {
                     Set<MessageQueue> lockOKMQSet =
                         this.mQClientFactory.getMQClientAPIImpl().lockBatchMQ(findBrokerResult.getBrokerAddr(), requestBody, 1000);
 
+                    // Step3：将成功锁定的消息消费队列相对应的处理队列设置为锁定状态，同时更新加锁时间
                     for (MessageQueue mq : lockOKMQSet) {
                         ProcessQueue processQueue = this.processQueueTable.get(mq);
                         if (processQueue != null) {
@@ -200,6 +208,8 @@ public abstract class RebalanceImpl {
                             processQueue.setLastLockTimestamp(System.currentTimeMillis());
                         }
                     }
+                    // Step4：遍历当前处理队列中的消息消费队列，如果当前消费者不持有该消息队列的锁，将处理队列锁状态设置为false，
+                    // 暂停该消息消费队列的消息拉取与消息消费
                     for (MessageQueue mq : mqs) {
                         if (!lockOKMQSet.contains(mq)) {
                             ProcessQueue processQueue = this.processQueueTable.get(mq);
@@ -393,6 +403,10 @@ public abstract class RebalanceImpl {
         for (MessageQueue mq : mqSet) {
             // 如果processQueueTable中没有包含该消息队列，表明这是本次新增加的消息队列
             if (!this.processQueueTable.containsKey(mq)) {
+                // 顺序消息消费与并发消息消费的第一个关键区别：顺序消息在创建消息队列拉取任务时需要在Broker服务器锁定该消息队列
+
+                // 顺序消息首先需要尝试向Broker发起锁定该消息队列的请求，如果返回加锁成功则创建该消息队列的拉取任务，
+                // 否则将跳过，等待其他消费者释放该消息队列的锁，然后在下一次队列重新负载时再尝试加锁
                 if (isOrder && !this.lock(mq)) {
                     log.warn("doRebalance, {}, add a new mq failed, {}, because lock failed", consumerGroup, mq);
                     continue;

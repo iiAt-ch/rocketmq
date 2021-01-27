@@ -185,7 +185,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         }
 
         // Step4：设置消息重试次数，如果消息已重试次数超过maxReconsumeTimes，再次改变newTopic主题为DLQ（"%DLQ%"），
-        // 该主题的权限为只写，说明消息一旦进入到DLQ队列中，RocketMQ将不负责再次调度进行消费了，需要人工干预
+        // 该主题的权限为只写，说明消息一旦进入到DLQ(死信)队列中，RocketMQ将不负责再次调度进行消费了，需要人工干预
         if (msgExt.getReconsumeTimes() >= maxReconsumeTimes
             || delayLevel < 0) {
             newTopic = MixAll.getDLQTopic(requestHeader.getGroup());
