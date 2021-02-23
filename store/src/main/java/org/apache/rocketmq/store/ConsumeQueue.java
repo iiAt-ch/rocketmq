@@ -32,10 +32,16 @@ import org.apache.rocketmq.store.config.StorePathConfigHelper;
  * 试想一下如果消息消费者直接从消息存储文件（commitlog）中去遍历查找订阅主题下的消息，效率将极其低下，RocketMQ为了适应消息消费的检索需求，
  * 设计了消息消费队列文件（Consumequeue），该文件可以看成是Commitlog关于消息消费的“索引”文件，
  * consumequeue的第一级目录为消息主题，第二级目录为主题的消息队列
+ *
+ * 提高根据主题与消息队列检索消息的速度
  */
 public class ConsumeQueue {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    /**
+     * 一个Consumequeue条目的长度（8字节commitlog offset + 4字节size + 8字节tag hashcode）
+     * 单个ConsumeQueue文件中默认包含30万个条目，单个文件的长度为30w×20字节
+     */
     public static final int CQ_STORE_UNIT_SIZE = 20;
     private static final InternalLogger LOG_ERROR = InternalLoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);
 
@@ -172,10 +178,12 @@ public class ConsumeQueue {
         if (mappedFile != null) {
             // Step2：采用二分查找来加速检索
             long offset = 0;
+            // 首先计算最低查找偏移量，取消息队列最小偏移量与该文件最小偏移量二者中的最小偏移量为low
             int low = minLogicOffset > mappedFile.getFileFromOffset() ? (int) (minLogicOffset - mappedFile.getFileFromOffset()) : 0;
             int high = 0;
             int midOffset = -1, targetOffset = -1, leftOffset = -1, rightOffset = -1;
             long leftIndexValue = -1L, rightIndexValue = -1L;
+            // 获取当前存储文件中有效的最小消息物理偏移量minPhysicOffset
             long minPhysicOffset = this.defaultMessageStore.getMinPhyOffset();
             SelectMappedBufferResult sbr = mappedFile.selectMappedBuffer(0);
             if (null != sbr) {
@@ -211,6 +219,9 @@ public class ConsumeQueue {
                         }
                     }
 
+                    // Step3：如果targetOffset不等于-1表示找到了存储时间戳等于待查找时间戳的消息；
+                    // 如果leftIndexValue等于-1，表示返回当前时间戳大并且最接近待查找的偏移量；
+                    // 如果rightIndexValue等于-1，表示返回的消息比待查找时间戳小并且最接近查找的偏移量
                     if (targetOffset != -1) {
 
                         offset = targetOffset;
@@ -510,7 +521,7 @@ public class ConsumeQueue {
         // startIndex*20得到在consumequeue中的物理偏移量
         long offset = startIndex * CQ_STORE_UNIT_SIZE;
         if (offset >= this.getMinLogicOffset()) {
-            // 如果大于minLogicOffset，则根据偏移量定位到具体的物理文件
+            // 根据offset查询映射文件
             MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset);
             if (mappedFile != null) {
                 // 通过offset与物理文大小取模获取在该文件的偏移量，从而从偏移量开始连续读取20个字节即可

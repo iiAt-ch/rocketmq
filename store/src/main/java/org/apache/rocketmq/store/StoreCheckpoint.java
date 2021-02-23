@@ -30,6 +30,8 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 /**
  * 文件检测点（${ROCKET_HOME}/store/checkpoint）
  * checkpoint文件记录Commitlog、ConsumeQueue、Index文件的刷盘时间点
+ *
+ * 文件固定长度为4k，其中只用该文件的前面24个字节
  */
 public class StoreCheckpoint {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
@@ -37,15 +39,15 @@ public class StoreCheckpoint {
     private final FileChannel fileChannel;
     private final MappedByteBuffer mappedByteBuffer;
     /**
-     * commitlog文件刷盘时间点
+     * 8字节，commitlog文件刷盘时间点
      */
     private volatile long physicMsgTimestamp = 0;
     /**
-     * 消息消费队列文件刷盘时间点
+     * 8字节，消息消费队列文件刷盘时间点
      */
     private volatile long logicsMsgTimestamp = 0;
     /**
-     * 索引文件刷盘时间点
+     * 8字节，索引文件刷盘时间点
      */
     private volatile long indexMsgTimestamp = 0;
 

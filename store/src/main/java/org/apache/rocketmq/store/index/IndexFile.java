@@ -33,10 +33,27 @@ import org.apache.rocketmq.store.MappedFile;
  */
 public class IndexFile {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
+    /**
+     * 每个hash槽的大小（4字节）
+     * 存储的是落在该Hash槽的hashcode最新的Index的索引
+     */
     private static int hashSlotSize = 4;
+    /**
+     * 单个Index条目大小（20个字节）
+     * 4字节，hashcode:key的hashcode。
+     * 8字节，phyoffset：消息对应的物理偏移量。
+     * 4字节，timedif：该消息存储时间与第一条消息的时间戳的差值，小于0该消息无效。
+     * 4字节，preIndexNo：该条目的前一条记录的Index索引，当出现hash冲突时，构建的链表结构
+     */
     private static int indexSize = 20;
     private static int invalidIndex = 0;
+    /**
+     * hash槽数量(一个IndexFile默认包含500万个Hash槽)
+     */
     private final int hashSlotNum;
+    /**
+     * Index条目数（默认一个索引文件包含2000万个条目）
+     */
     private final int indexNum;
     private final MappedFile mappedFile;
     private final FileChannel fileChannel;
@@ -148,9 +165,11 @@ public class IndexFile {
                 this.mappedByteBuffer.putInt(absIndexPos, keyHash);
                 this.mappedByteBuffer.putLong(absIndexPos + 4, phyOffset);
                 this.mappedByteBuffer.putInt(absIndexPos + 4 + 8, (int) timeDiff);
+                // 新的Index条目的最后4个字节存储该HashCode上一个条目的Index下标
                 this.mappedByteBuffer.putInt(absIndexPos + 4 + 8 + 4, slotValue);
 
                 // 3）将当前Index中包含的条目数量存入Hash槽中，将覆盖原先Hash槽的值
+                // Hash槽中存储的是该HashCode所对应的最新的Index条目的下标
                 this.mappedByteBuffer.putInt(absSlotPos, this.indexHeader.getIndexCount());
 
                 // Step5：更新文件索引头信息。
@@ -261,10 +280,8 @@ public class IndexFile {
                         int absIndexPos =
                             IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize
                                 + nextIndexToRead * indexSize;
-
                         int keyHashRead = this.mappedByteBuffer.getInt(absIndexPos);
                         long phyOffsetRead = this.mappedByteBuffer.getLong(absIndexPos + 4);
-
                         long timeDiff = (long) this.mappedByteBuffer.getInt(absIndexPos + 4 + 8);
                         int prevIndexRead = this.mappedByteBuffer.getInt(absIndexPos + 4 + 8 + 4);
 

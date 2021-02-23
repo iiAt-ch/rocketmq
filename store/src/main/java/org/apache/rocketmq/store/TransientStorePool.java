@@ -37,11 +37,11 @@ public class TransientStorePool {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
     /**
-     * avaliableBuffers个数，可通过在broker中配置文件中设置transient-Store PoolSize，默认为5
+     * avaliableBuffers个数，可通过在broker中配置文件中设置transientStorePoolSize，默认为5
      */
     private final int poolSize;
     /**
-     * 每个ByteBuffer大小，默认为mapedFileSizeCommitLog，表明TransientStorePool为commitlog文件服务
+     * 每个ByteBuffer大小，默认为mapedFileSizeCommitLog(commintLog每个文件的大小)，表明TransientStorePool为commitlog文件服务
      */
     private final int fileSize;
     /**

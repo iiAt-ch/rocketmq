@@ -36,7 +36,7 @@ public class MessageStoreConfig {
 
     // CommitLog file size,default is 1G
     /**
-     * commintLog每个文件的大小
+     * commintLog每个文件的大小(默认1G)
      */
     private int mapedFileSizeCommitLog = 1024 * 1024 * 1024;
     // ConsumeQueue file size,default is 30W

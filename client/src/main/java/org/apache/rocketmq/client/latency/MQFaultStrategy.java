@@ -59,7 +59,9 @@ public class MQFaultStrategy {
     }
 
     /**
-     * todo 选择消息队列有两种方式 1）sendLatencyFaultEnable=false，默认不启用Broker故障延迟机制 2）sendLatencyFaultEnable=true，启用Broker故障延迟机制
+     * todo 选择消息队列有两种方式
+     * 1）sendLatencyFaultEnable=false，默认不启用Broker故障延迟机制
+     * 2）sendLatencyFaultEnable=true，启用Broker故障延迟机制
      *
      * @param tpInfo
      * @param lastBrokerName
@@ -76,6 +78,7 @@ public class MQFaultStrategy {
                     if (pos < 0)
                         pos = 0;
                     MessageQueue mq = tpInfo.getMessageQueueList().get(pos);
+
                     // 2) 验证该消息队列是否可用，也是时间戳判断
                     if (latencyFaultTolerance.isAvailable(mq.getBrokerName())) {
                         // 非失败重试，直接返回到的队列

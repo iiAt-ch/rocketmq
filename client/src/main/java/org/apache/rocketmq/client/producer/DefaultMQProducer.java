@@ -103,7 +103,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     /**
      * Timeout for sending messages.
      *
-     * 发送消息超时时间，单位毫秒
+     * 发送消息超时时间，默认3s
      */
     private int sendMsgTimeout = 3000;
 
@@ -145,10 +145,10 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     /**
      * Maximum allowed message size in bytes.
      *
-     * 客户端限制的消息大小，超过报错，同时服务端也会限制（默认4M）
+     * 客户端限制的消息大小，超过报错，同时服务端也会限制（默认4M），该值最大值为2^32-1
      * 批量发也一样，一批总长度不能超过这个
      */
-    private int maxMessageSize = 1024 * 1024 * 4; // 4M
+    private int maxMessageSize = 1024 * 1024 * 4;
 
     /**
      * Interface of asynchronous transfer data
@@ -786,6 +786,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
      * 将一批消息封装成MessageBatch对象
+     *
      * @param msgs
      * @return
      * @throws MQClientException

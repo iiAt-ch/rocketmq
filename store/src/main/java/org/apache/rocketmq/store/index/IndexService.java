@@ -54,6 +54,12 @@ public class IndexService {
             StorePathConfigHelper.getStorePathIndex(store.getMessageStoreConfig().getStorePathRootDir());
     }
 
+    /**
+     * 加载索引文件
+     *
+     * @param lastExitOK
+     * @return
+     */
     public boolean load(final boolean lastExitOK) {
         File dir = new File(this.storePath);
         File[] files = dir.listFiles();
@@ -66,6 +72,7 @@ public class IndexService {
                     f.load();
 
                     if (!lastExitOK) {
+                        // 如果上次异常退出，索引文件上次刷盘时间小于该索引文件最大的消息时间戳该文件将立即销毁
                         if (f.getEndTimestamp() > this.defaultMessageStore.getStoreCheckpoint()
                             .getIndexMsgTimestamp()) {
                             f.destroy(0);

@@ -145,6 +145,8 @@ public class BrokerOuterAPI {
             final byte[] body = requestBody.encode(compressed);
             final int bodyCrc32 = UtilAll.crc32(body);
             requestHeader.setBodyCrc32(bodyCrc32);
+
+            // 遍历NameServer列表，Broker消息服务器依次向NameServer发送心跳包
             final CountDownLatch countDownLatch = new CountDownLatch(nameServerAddressList.size());
             for (final String namesrvAddr : nameServerAddressList) {
                 // 遍历所有NameServer列表

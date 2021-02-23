@@ -98,6 +98,7 @@ public class MappedFileQueue {
 
     /**
      * 根据消息存储时间戳查询维度来查找MappedFile
+     *
      * @param timestamp
      * @return
      */
@@ -173,14 +174,22 @@ public class MappedFileQueue {
         }
     }
 
+    /**
+     * 加载Commitlog文件
+     *
+     * @return
+     */
     public boolean load() {
         File dir = new File(this.storePath);
         File[] files = dir.listFiles();
         if (files != null) {
             // ascending order
+            // 按照文件名升序
             Arrays.sort(files);
             for (File file : files) {
 
+                // 如果文件大小与配置文件的单个文件大小不一致，将忽略该目录下所有文件
+                // 如果物理文件大小 ！= mappedFileSize，说明文件被破坏了，返回false
                 if (file.length() != this.mappedFileSize) {
                     log.warn(file + "\t" + file.length()
                         + " length not matched message store config value, ignore it");
@@ -188,8 +197,10 @@ public class MappedFileQueue {
                 }
 
                 try {
+                    // 创建MappedFile对象
                     MappedFile mappedFile = new MappedFile(file.getPath(), mappedFileSize);
 
+                    // 将wrotePosition、flushedPosition、committedPosition三个指针都设置为文件大小
                     mappedFile.setWrotePosition(this.mappedFileSize);
                     mappedFile.setFlushedPosition(this.mappedFileSize);
                     mappedFile.setCommittedPosition(this.mappedFileSize);
@@ -315,7 +326,8 @@ public class MappedFileQueue {
     }
 
     /**
-     * 获取存储文件最小偏移量，从这里也可以看出，并不是直接返回0，而是返回Mapped-File的getFileFormOffset（）
+     * 获取存储文件最小偏移量，从这里也可以看出，并不是直接返回0，而是返回MappedFile的getFileFromOffset()
+     *
      * @return
      */
     public long getMinOffset() {
@@ -334,6 +346,7 @@ public class MappedFileQueue {
 
     /**
      * 获取存储文件的最大偏移量。返回最后一个MappedFile文件的fileFromOffset加上MappedFile文件当前的写指针
+     *
      * @return
      */
     public long getMaxOffset() {
@@ -514,6 +527,8 @@ public class MappedFileQueue {
                         this.mappedFileSize,
                         this.mappedFiles.size());
                 } else {
+                    // 由于使用了内存映射，只要存在于存储目录下的文件，都需要对应创建内存映射文件，如果不定时将已消费的消息从存储文件中删除，
+                    // 会造成极大的内存压力与资源浪费，所有RocketMQ采取定时删除存储文件的策略
                     // 在存储文件中，第一个文件不一定是00000000000000000000，因为该文件在某一时刻会被删除，故根据offset定位MappedFile的算法为下
                     int index = (int) ((offset / this.mappedFileSize) - (firstMappedFile.getFileFromOffset() / this.mappedFileSize));
                     MappedFile targetFile = null;

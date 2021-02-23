@@ -136,9 +136,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             case CREATE_JUST:
                 this.serviceState = ServiceState.START_FAILED;
 
-                // Step1：检查productGroup是否符合要求；并改变生产者的instanceName为进程ID
+                // Step1：检查productGroup是否符合要求；不能为空，长度小于255，字符规则符合"^[%|a-zA-Z0-9_-]+$"
+                // 且不能为系统默认DEFAULT_PRODUCER_GROUP
                 this.checkConfig();
+                // 不是系统内部的producerGroup就进行设置instanceName
                 if (!this.defaultMQProducer.getProducerGroup().equals(MixAll.CLIENT_INNER_PRODUCER_GROUP)) {
+                    // 并改变生产者的instanceName为进程ID
                     this.defaultMQProducer.changeInstanceNameToPID();
                 }
 
@@ -487,6 +490,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
     /**
      * todo 消息发送流程
+     * 消息发送流程主要的步骤：验证消息、查找路由、消息发送（包含异常处理机制）
      * 
      * @param msg
      * @param communicationMode
@@ -511,6 +515,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         long beginTimestampPrev = beginTimestampFirst;
         long endTimestamp = beginTimestampFirst;
         // 首先需要获取主题的路由信息，只有获取了这些信息我们才知道消息要发送到具体的Broker节点
+        // 返回的消息队列已经按照broker、序号排序
         TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
         if (topicPublishInfo != null && topicPublishInfo.ok()) {
             boolean callTimeout = false;
@@ -544,6 +549,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo,
                             timeout - costTime);
                         endTimestamp = System.currentTimeMillis();
+                        // 根据本次消息发送延迟时间currentLatency判断是否将该broker暂时规避
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
                         switch (communicationMode) {
                             case ASYNC:
@@ -709,16 +715,16 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         long beginStartTime = System.currentTimeMillis();
         // Step1：根据MessageQueue获取Broker的网络地址。
-        // 如果MQClientInstance的brokerAddrTable未缓存该Broker的信息，则从NameServer主动更新一下topic的路由信息。
-        // 如果路由更新后还是找不到Broker信息，则抛出MQClientException，提示Broker不存在
         String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         if (null == brokerAddr) {
+            // 如果MQClientInstance的brokerAddrTable未缓存该Broker的信息，则从NameServer主动更新一下topic的路由信息。
             tryToFindTopicPublishInfo(mq.getTopic());
             brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         }
 
         SendMessageContext context = null;
         if (brokerAddr != null) {
+            // 如果设置了VIP（高优先级队列）通道，那么这里将根据brokerAddr获取VIP通道的的地址:VIP通道的地址计算很简单，只是将端口号减去2
             brokerAddr = MixAll.brokerVIPChannel(this.defaultMQProducer.isSendMessageWithVIPChannel(), brokerAddr);
 
             byte[] prevBody = msg.getBody();
@@ -726,6 +732,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 // Step2：为消息分配全局唯一ID，如果消息体默认超过4K（compressMsgBodyOverHowmuch），
                 // 会对消息体采用zip压缩，并设置消息的系统标记为MessageSysFlag.COMPRESSED_FLAG。
                 // 如果是事务Prepared消息，则设置消息的系统标记为MessageSysFlag.TRANSACTION_PREPARED_TYPE
+
                 // for MessageBatch,ID has been set in the generating process
                 if (!(msg instanceof MessageBatch)) {
                     MessageClientIDSetter.setUniqID(msg);
@@ -739,7 +746,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     msgBodyCompressed = true;
                 }
 
-                // 在消息发送之前，如果消息为prepare类型，则设置消息标准为prepare消息类型，方便消息服务器正确识别事务类型的消息
+                // 在消息发送之前，如果消息为prepare(事务)类型，则设置消息标准为prepare消息类型，方便消息服务器正确识别事务类型的消息
                 final String tranMsg = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
                 if (tranMsg != null && Boolean.parseBoolean(tranMsg)) {
                     // 位运算，状态存储
@@ -879,6 +886,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             }
         }
 
+        // 如果路由更新后还是找不到Broker信息，则抛出MQClientException，提示Broker不存在
         throw new MQClientException("The broker[" + mq.getBrokerName() + "] not exist", null);
     }
 

@@ -31,6 +31,9 @@ public class BrokerData implements Comparable<BrokerData> {
      * 所属集群名称
      */
     private String cluster;
+    /**
+     * 多个Broker组成一个集群，BrokerName相同的多台Broker组成Master-Slave架构
+     */
     private String brokerName;
     /**
      * 主备Broker地址，brokerId=0表示Master，大于0表示从Slave

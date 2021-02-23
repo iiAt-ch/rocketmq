@@ -53,12 +53,14 @@ public class RouteInfoManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
     private final static long BROKER_CHANNEL_EXPIRED_TIME = 1000 * 60 * 2;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+
+    // 路由元数据
     /**
      * Topic消息队列路由信息，消息发送时根据路由表进行负载均衡
      */
     private final HashMap<String/* topic */, List<QueueData>> topicQueueTable;
     /**
-     * Broker基础信息
+     * Broker基础信息，包含brokerName、所属集群名称、主备Broker地址。
      */
     private final HashMap<String/* brokerName */, BrokerData> brokerAddrTable;
     /**
@@ -121,7 +123,8 @@ public class RouteInfoManager {
     }
 
     /**
-     * 路由注册
+     * 路由注册(NameServer处理Broker发送的心跳包)
+     *
      * @param clusterName
      * @param brokerAddr
      * @param brokerName
@@ -145,6 +148,8 @@ public class RouteInfoManager {
         try {
             try {
                 // 路由注册需要加写锁，防止并发修改RouteInfoManager中的路由表
+                // 使用了锁粒度较少的读写锁，允许多个消息发送者（Producer）并发读，保证消息发送时的高并发。
+                // 但同一时刻NameServer只处理一个Broker心跳包，多个心跳包请求串行执行
                 this.lock.writeLock().lockInterruptibly();
 
                 // step1：维护clusterAddrTable
@@ -203,7 +208,6 @@ public class RouteInfoManager {
 
                 // Step5：维护filterServerTable
                 // 注册Broker的过滤器Server地址列表，一个Broker上会关联多个FilterServer消息过滤服务器；
-                // 如果此Broker为从节点，则需要查找该Broker的Master的节点信息，并更新对应的masterAddr属性
                 if (filterServerList != null) {
                     if (filterServerList.isEmpty()) {
                         this.filterServerTable.remove(brokerAddr);
@@ -212,6 +216,7 @@ public class RouteInfoManager {
                     }
                 }
 
+                // 如果此Broker为从节点，则需要查找该Broker的Master的节点信息，并更新对应的masterAddr属性
                 if (MixAll.MASTER_ID != brokerId) {
                     String masterAddr = brokerData.getBrokerAddrs().get(MixAll.MASTER_ID);
                     if (masterAddr != null) {
@@ -331,6 +336,14 @@ public class RouteInfoManager {
         return wipeTopicCnt;
     }
 
+    /**
+     * Broker在正常被关闭的情况下，会执行unregisterBroker指令触发路由删除
+     *
+     * @param clusterName
+     * @param brokerAddr
+     * @param brokerName
+     * @param brokerId
+     */
     public void unregisterBroker(
         final String clusterName,
         final String brokerAddr,
@@ -479,7 +492,8 @@ public class RouteInfoManager {
 
     /**
      * todo 路由删除
-     * 扫描失效的Broker
+     * NameServer会每隔10s扫描brokerLiveTable状态表，如果BrokerLive的lastUpdateTimestamp的时间戳距当前时间超过120s，
+     * 则认为Broker失效，触发路由删除
      */
     public void scanNotActiveBroker() {
         Iterator<Entry<String, BrokerLiveInfo>> it = this.brokerLiveTable.entrySet().iterator();

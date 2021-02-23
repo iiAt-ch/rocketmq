@@ -52,7 +52,7 @@ public class MappedFile extends ReferenceResource {
     protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
     /**
-     * 当前JVM实例中Mapped-File虚拟内存
+     * 当前JVM实例中MappedFile虚拟内存
      */
     private static final AtomicLong TOTAL_MAPPED_VIRTUAL_MEMORY = new AtomicLong(0);
 
@@ -384,7 +384,7 @@ public class MappedFile extends ReferenceResource {
 
     /**
      * 内存映射文件的提交动作由MappedFile的commit方法实现
-     * commit的作用就是将Mapped File#-writeBuffer中的数据提交到文件通道FileChannel中
+     * commit的作用就是将MappedFile#writeBuffer中的数据提交到文件通道FileChannel中
      *
      * @param commitLeastPages 本次提交最小的页数
      * @return
@@ -416,7 +416,7 @@ public class MappedFile extends ReferenceResource {
 
     /**
      * 具体的提交实现
-     * commit的作用就是将Mapped File#-writeBuffer中的数据提交到文件通道FileChannel中
+     * commit的作用就是将Mapped File#writeBuffer中的数据提交到文件通道FileChannel中
      *
      * @param commitLeastPages
      */
@@ -428,10 +428,14 @@ public class MappedFile extends ReferenceResource {
             try {
                 // slice（）方法创建一个共享缓存区, 与原先的ByteBuffer共享内存但维护一套独立的指针（position、mark、limit）
                 ByteBuffer byteBuffer = writeBuffer.slice();
+                // 将新创建的position回退到上一次提交的位置（committedPosition），，，
                 byteBuffer.position(lastCommittedPosition);
+                // 设置limit为wrotePosition（当前最大有效数据指针）
                 byteBuffer.limit(writePos);
+                // 然后把commitedPosition到wrotePosition的数据复制（写入）到File Channel中
                 this.fileChannel.position(lastCommittedPosition);
                 this.fileChannel.write(byteBuffer);
+                // 然后更新committedPosition指针为wrotePosition
                 this.committedPosition.set(writePos);
             } catch (Throwable e) {
                 log.error("Error occurred when commit data to FileChannel.", e);
@@ -528,6 +532,7 @@ public class MappedFile extends ReferenceResource {
                 byteBuffer.position(pos);
                 int size = readPosition - pos;
                 ByteBuffer byteBufferNew = byteBuffer.slice();
+                // 可读最大长度
                 byteBufferNew.limit(size);
                 return new SelectMappedBufferResult(this.fileFromOffset + pos, byteBufferNew, size, this);
             }
@@ -607,7 +612,7 @@ public class MappedFile extends ReferenceResource {
     }
 
     /**
-     * 获取MappedFile最大读指针
+     * 获取MappedFile最大可读指针
      * RocketMQ文件的一个组织方式是内存映射文件，预先申请一块连续的固定大小的内存，需要一套指针标识当前最大有效数据的位置，
      * 获取最大有效数据偏移量的方法由MappedFile的getReadPosition方法实现
      *
@@ -615,6 +620,8 @@ public class MappedFile extends ReferenceResource {
      */
     public int getReadPosition() {
         // 在MappedFile设计中，只有提交了的数据（写入到MappedByteBuffer或FileChannel中的数据）才是安全的数据
+        // 如果writeBuffer为空，数据是直接进入到MappedByteBuffer, wrotePosition代表的是MappedByteBuffer中的指针
+        // 如果writeBuffer不为空，则应等于上一次commit指针；因为上一次提交的数据就是进入到MappedByteBuffer中的数据；
         return this.writeBuffer == null ? this.wrotePosition.get() : this.committedPosition.get();
     }
 

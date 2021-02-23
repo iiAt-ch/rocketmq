@@ -61,7 +61,7 @@ import org.apache.rocketmq.store.stats.BrokerStatsManager;
 import static org.apache.rocketmq.store.config.BrokerRole.SLAVE;
 
 /**
- * 它是存储模块里面最重要的一个类，包含了很多对存储文件操作的API，其他模块对消息实体的操作都是通过DefaultMessageStore进行操作
+ * todo 它是存储模块里面最重要的一个类，包含了很多对存储文件操作的API，其他模块对消息实体的操作都是通过DefaultMessageStore进行操作
  */
 public class DefaultMessageStore implements MessageStore {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
@@ -410,6 +410,7 @@ public class DefaultMessageStore implements MessageStore {
             return new PutMessageResult(PutMessageStatus.PROPERTIES_SIZE_EXCEEDED, null);
         }
 
+        // 判断系统是否繁忙
         if (this.isOSPageCacheBusy()) {
             return new PutMessageResult(PutMessageStatus.OS_PAGECACHE_BUSY, null);
         }
@@ -488,9 +489,11 @@ public class DefaultMessageStore implements MessageStore {
 
     @Override
     public boolean isOSPageCacheBusy() {
+        // putMessage 加锁的时间，如果没有正在写入，则值为0
         long begin = this.getCommitLog().getBeginTimeInLock();
         long diff = this.systemClock.now() - begin;
 
+        // 超过配置时间，则为系统繁忙
         return diff < 10000000
                 && diff > this.messageStoreConfig.getOsPageCacheBusyTimeOutMills();
     }
@@ -1328,6 +1331,14 @@ public class DefaultMessageStore implements MessageStore {
         return file.exists();
     }
 
+    /**
+     * 加载消息消费队列，其思路与加载CommitLog大体一致，
+     * 遍历消息消费队列根目录，获取该Broker存储的所有主题，然后遍历每个主题目录，获取该主题下的所有消息消费队列，
+     * 然后分别加载每个消息消费队列下的文件，构建ConsumeQueue对象，
+     * 主要初始化ConsumeQueue的topic、queueId、storePath、mappedFileSize属性
+     *
+     * @return
+     */
     private boolean loadConsumeQueue() {
         File dirLogic = new File(StorePathConfigHelper.getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir()));
         File[] fileTopicList = dirLogic.listFiles();
